@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central de Chamados TI</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ════════════════════════════════════════════════ -->
+<aside class="sidebar" role="navigation" aria-label="Menu principal">
+  <div class="sidebar-brand">
+    <div class="brand-icon" aria-hidden="true"><i class="ti ti-device-desktop-analytics"></i></div>
+    <div>
+      <div class="brand-text">Central de Chamados</div>
+      <div class="brand-sub">Suporte TI</div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Menu</div>
+    <button class="nav-item active" id="nav-dashboard" onclick="go('dashboard')" aria-current="page">
+      <i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard
+    </button>
+    <button class="nav-item" id="nav-new" onclick="go('new')">
+      <i class="ti ti-circle-plus" aria-hidden="true"></i> Novo chamado
+    </button>
+  </div>
+
+  <div class="nav-divider"></div>
+
+  <div class="nav-section">
+    <div class="nav-label">Chamados</div>
+    <button class="nav-item" id="nav-history" onclick="go('history')">
+      <i class="ti ti-list-details" aria-hidden="true"></i> Histórico geral
+    </button>
+    <button class="nav-item" id="nav-req" onclick="go('history','requisicao')">
+      <i class="ti ti-file-invoice" aria-hidden="true"></i> Requisições
+    </button>
+    <button class="nav-item" id="nav-inc" onclick="go('history','incidente')">
+      <i class="ti ti-alert-triangle" aria-hidden="true"></i> Incidentes
+    </button>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="ticket-counter" aria-live="polite" aria-label="Contadores de chamados">
+      <div class="counter-row">
+        <span class="counter-label">Abertos</span>
+        <span class="counter-val" id="cnt-open">—</span>
+      </div>
+      <div class="counter-row">
+        <span class="counter-label">Em andamento</span>
+        <span class="counter-val" id="cnt-prog">—</span>
+      </div>
+      <div class="counter-row">
+        <span class="counter-label">Total geral</span>
+        <span class="counter-val" id="cnt-total">—</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ════════════════════════════════════════════════════ -->
+<div class="main">
+  <header class="topbar">
+    <span class="topbar-title" id="topbar-title" aria-live="polite">Dashboard</span>
+    <div class="topbar-right">
+      <button class="btn btn-primary btn-sm" onclick="go('new')">
+        <i class="ti ti-plus" aria-hidden="true"></i> Novo chamado
+      </button>
+    </div>
+  </header>
+
+  <main class="content fade-in" id="app" aria-live="polite">
+    <div class="loader"><div class="spinner"></div> Iniciando...</div>
+  </main>
+</div>
+
+<!-- ═══ TOAST ════════════════════════════════════════════════════ -->
+<div class="toast-container" id="toast-container" aria-live="assertive" role="status"></div>
+
+<!-- ═══ SCRIPTS ══════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
