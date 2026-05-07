@@ -9,6 +9,35 @@
 </head>
 <body>
 
+<!-- ═══ LOGIN SCREEN ════════════════════════════════════════════ -->
+<div id="login-screen" style="display:none" aria-label="Tela de login">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-icon" aria-hidden="true"><i class="ti ti-device-desktop-analytics"></i></div>
+      <div class="login-brand-name">Central de Chamados</div>
+      <div class="login-brand-sub">Suporte TI</div>
+    </div>
+    <div id="login-error" class="alert-box a-danger" style="display:none" role="alert"></div>
+    <div class="form-group">
+      <label class="form-label" for="l-username">Usuário</label>
+      <input class="form-input" id="l-username" type="text" placeholder="seu.usuario" autocomplete="username" spellcheck="false">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="l-password">Senha</label>
+      <div class="input-eye">
+        <input class="form-input" id="l-password" type="password" placeholder="••••••••" autocomplete="current-password">
+        <button type="button" class="eye-btn" id="l-btn-eye" aria-label="Mostrar senha"><i class="ti ti-eye"></i></button>
+      </div>
+    </div>
+    <button class="btn btn-primary login-submit" id="btn-login">
+      <i class="ti ti-login" aria-hidden="true"></i> Entrar
+    </button>
+  </div>
+</div>
+
+<!-- ═══ APP SHELL ════════════════════════════════════════════════ -->
+<div id="app-shell" style="display:none">
+
 <!-- ═══ SIDEBAR ════════════════════════════════════════════════ -->
 <aside class="sidebar" role="navigation" aria-label="Menu principal">
   <div class="sidebar-brand">
@@ -21,31 +50,47 @@
 
   <div class="nav-section">
     <div class="nav-label">Menu</div>
-    <button class="nav-item active" id="nav-dashboard" onclick="go('dashboard')" aria-current="page">
+    <button class="nav-item active" id="nav-dashboard" aria-current="page">
       <i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard
     </button>
-    <button class="nav-item" id="nav-new" onclick="go('new')">
+    <button class="nav-item" id="nav-new">
       <i class="ti ti-circle-plus" aria-hidden="true"></i> Novo chamado
     </button>
   </div>
 
-  <div class="nav-divider"></div>
+  <div class="nav-divider" id="nav-divider-chamados"></div>
 
-  <div class="nav-section">
+  <div class="nav-section" id="nav-section-chamados">
     <div class="nav-label">Chamados</div>
-    <button class="nav-item" id="nav-history" onclick="go('history')">
+    <button class="nav-item" id="nav-history">
       <i class="ti ti-list-details" aria-hidden="true"></i> Histórico geral
     </button>
-    <button class="nav-item" id="nav-req" onclick="go('history','requisicao')">
+    <button class="nav-item" id="nav-req">
       <i class="ti ti-file-invoice" aria-hidden="true"></i> Requisições
     </button>
-    <button class="nav-item" id="nav-inc" onclick="go('history','incidente')">
+    <button class="nav-item" id="nav-inc">
       <i class="ti ti-alert-triangle" aria-hidden="true"></i> Incidentes
     </button>
   </div>
 
+  <div class="nav-divider" id="nav-divider-admin"></div>
+
+  <div class="nav-section" id="nav-section-admin">
+    <div class="nav-label">Administração</div>
+    <button class="nav-item" id="nav-users">
+      <i class="ti ti-users" aria-hidden="true"></i> Usuários
+    </button>
+  </div>
+
   <div class="sidebar-footer">
-    <div class="ticket-counter" aria-live="polite" aria-label="Contadores de chamados">
+    <div class="sidebar-user" id="sidebar-user">
+      <div id="su-avatar" class="su-avatar">?</div>
+      <div>
+        <div id="su-name" class="su-name">—</div>
+        <div id="su-role" class="su-role">—</div>
+      </div>
+    </div>
+    <div class="ticket-counter" id="sidebar-counters" aria-live="polite" aria-label="Contadores de chamados">
       <div class="counter-row">
         <span class="counter-label">Abertos</span>
         <span class="counter-val" id="cnt-open">—</span>
@@ -67,8 +112,11 @@
   <header class="topbar">
     <span class="topbar-title" id="topbar-title" aria-live="polite">Dashboard</span>
     <div class="topbar-right">
-      <button class="btn btn-primary btn-sm" onclick="go('new')">
+      <button class="btn btn-primary btn-sm" id="btn-topbar-new">
         <i class="ti ti-plus" aria-hidden="true"></i> Novo chamado
+      </button>
+      <button class="btn btn-sm" id="btn-logout" title="Sair" aria-label="Sair">
+        <i class="ti ti-logout" aria-hidden="true"></i> Sair
       </button>
     </div>
   </header>
@@ -76,6 +124,128 @@
   <main class="content fade-in" id="app" aria-live="polite">
     <div class="loader"><div class="spinner"></div> Iniciando...</div>
   </main>
+</div>
+
+</div><!-- /app-shell -->
+
+<!-- ═══ USER MODAL ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="user-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="user-modal-title"><i class="ti ti-user-plus" aria-hidden="true"></i> Novo usuário</h2>
+      <button class="modal-close" id="btn-modal-close" aria-label="Fechar"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="u-name">Nome completo *</label>
+          <input class="form-input" id="u-name" type="text" placeholder="Ex: Ana Souza" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="u-username">Nome de usuário *</label>
+          <input class="form-input" id="u-username" type="text" placeholder="Ex: ana.souza" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="u-email">E-mail *</label>
+        <input class="form-input" id="u-email" type="email" placeholder="Ex: ana@empresa.com" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="u-role">Perfil *</label>
+        <select class="form-select" id="u-role">
+          <option value="usuario">Usuário Comum</option>
+          <option value="tecnico">Técnico</option>
+          <option value="admin">Administrador</option>
+        </select>
+      </div>
+      <div id="u-password-section">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="u-password">Senha *</label>
+            <div class="input-eye">
+              <input class="form-input" id="u-password" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+              <button type="button" class="eye-btn" id="btn-eye" aria-label="Mostrar senha"><i class="ti ti-eye"></i></button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="u-password-confirm">Confirmar senha *</label>
+            <div class="input-eye">
+              <input class="form-input" id="u-password-confirm" type="password" placeholder="Repita a senha" autocomplete="new-password">
+              <button type="button" class="eye-btn" id="btn-eye-confirm" aria-label="Mostrar confirmação"><i class="ti ti-eye"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="user-modal-errors"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-warn" id="btn-modal-reset" style="display:none;margin-right:auto">
+        <i class="ti ti-key" aria-hidden="true"></i> Reset de Senha
+      </button>
+      <button class="btn" id="btn-modal-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btn-modal-submit">
+        <i class="ti ti-user-plus" aria-hidden="true"></i> Cadastrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TEMP PASSWORD MODAL ══════════════════════════════════════ -->
+<div class="modal-overlay" id="tpw-modal" role="dialog" aria-modal="true" aria-labelledby="tpw-modal-title" style="display:none">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="tpw-modal-title"><i class="ti ti-key" aria-hidden="true"></i> Senha provisória gerada</h2>
+      <button class="modal-close" id="btn-tpw-close" aria-label="Fechar"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="cp-desc">Compartilhe esta senha com o usuário. Ao fazer login, ele será solicitado a criar uma senha permanente.</p>
+      <div class="tpw-display">
+        <span id="tpw-value" class="tpw-code">—</span>
+        <button class="btn btn-sm" id="btn-tpw-copy" title="Copiar senha">
+          <i class="ti ti-copy" aria-hidden="true"></i> Copiar
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btn-tpw-ok" style="width:100%;justify-content:center">
+        <i class="ti ti-check" aria-hidden="true"></i> Entendido
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHANGE PASSWORD MODAL ════════════════════════════════════ -->
+<div class="modal-overlay" id="cp-modal" role="dialog" aria-modal="true" aria-labelledby="cp-modal-title" style="display:none">
+  <div class="modal">
+    <div class="modal-header" style="border-bottom-color:var(--amber-bg)">
+      <h2 class="modal-title" id="cp-modal-title" style="color:var(--amber)">
+        <i class="ti ti-lock-open" aria-hidden="true"></i> Redefinir senha
+      </h2>
+    </div>
+    <div class="modal-body">
+      <p class="cp-desc">O administrador solicitou a redefinição da sua senha. Defina uma nova senha para continuar usando o sistema.</p>
+      <div class="form-group">
+        <label class="form-label" for="cp-password">Nova senha *</label>
+        <div class="input-eye">
+          <input class="form-input" id="cp-password" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+          <button type="button" class="eye-btn" id="cp-btn-eye" aria-label="Mostrar senha"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label" for="cp-confirm">Confirmar nova senha *</label>
+        <div class="input-eye">
+          <input class="form-input" id="cp-confirm" type="password" placeholder="Repita a nova senha" autocomplete="new-password">
+          <button type="button" class="eye-btn" id="cp-btn-eye-confirm" aria-label="Mostrar confirmação"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div id="cp-errors" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="cp-btn-submit" style="width:100%;justify-content:center;padding:10px">
+        <i class="ti ti-check" aria-hidden="true"></i> Definir nova senha
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ TOAST ════════════════════════════════════════════════════ -->

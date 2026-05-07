@@ -36,6 +36,38 @@ body {
   display: flex;
 }
 
+/* ── LOGIN SCREEN ──────────────────────────────── */
+#login-screen {
+  position: fixed; inset: 0; z-index: 500;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  padding: 36px 32px 28px;
+  width: 100%; max-width: 380px;
+}
+.login-brand { text-align: center; margin-bottom: 28px; }
+.login-brand-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: var(--blue); color: #fff;
+  font-size: 26px; display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 14px;
+}
+.login-brand-name {
+  font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700;
+  color: var(--text-1); margin-bottom: 3px;
+}
+.login-brand-sub { font-size: 12px; color: var(--text-3); }
+.login-submit { width: 100%; justify-content: center; margin-top: 6px; padding: 10px; font-size: 14px; }
+
+/* ── APP SHELL ─────────────────────────────────── */
+#app-shell { display: flex; width: 100%; min-height: 100vh; }
+
 /* ── SIDEBAR ───────────────────────────────────── */
 .sidebar {
   width: var(--nav-w); flex-shrink: 0;
@@ -188,12 +220,14 @@ body {
   background: var(--surface-2); color: var(--text-1); cursor: pointer;
   font-family: inherit; outline: none;
 }
-.del-btn {
+.del-btn, .edit-btn {
   background: none; border: none; cursor: pointer; padding: 4px 6px;
   color: var(--text-3); border-radius: var(--r-sm); font-size: 16px;
   display: flex; align-items: center; transition: color 0.1s, background 0.1s;
 }
-.del-btn:hover { color: var(--coral); background: var(--coral-bg); }
+.del-btn:hover  { color: var(--coral); background: var(--coral-bg); }
+.edit-btn:hover { color: var(--blue);  background: var(--blue-bg);  }
+.u-actions { display: flex; align-items: center; gap: 2px; }
 
 /* ── BADGES ────────────────────────────────────── */
 .badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 600; }
@@ -270,7 +304,23 @@ body {
 .btn i { font-size: 15px; }
 .btn-primary { background: var(--blue);  color: #fff; border-color: var(--blue);  }
 .btn-primary:hover { background: var(--blue-dk); border-color: var(--blue-dk); }
+.btn-warn { background: var(--amber-bg); color: #92400E; border-color: rgba(217,119,6,0.35); }
+.btn-warn:hover { background: #fef3c7; border-color: var(--amber); }
 .btn-sm { padding: 6px 12px; font-size: 12px; }
+.tpw-display {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--surface-2); border: 1.5px solid var(--border-md);
+  border-radius: var(--r-md); padding: 12px 16px;
+}
+.tpw-code {
+  font-family: 'Courier New', monospace; font-size: 22px; font-weight: 700;
+  letter-spacing: 0.12em; color: var(--text-1); user-select: all;
+}
+.cp-desc {
+  font-size: 13px; color: var(--text-2); line-height: 1.6;
+  background: var(--amber-bg); border: 1px solid rgba(217,119,6,0.2);
+  border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 18px;
+}
 
 /* ── FILTER BAR ────────────────────────────────── */
 .filter-bar {
@@ -330,3 +380,169 @@ body {
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+
+/* ── MODAL ─────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal {
+  background: var(--surface); border-radius: var(--r-xl);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  width: 100%; max-width: 500px;
+  display: flex; flex-direction: column;
+  animation: slideUp 0.18s ease;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px; color: var(--text-1);
+}
+.modal-close {
+  background: none; border: none; cursor: pointer; padding: 4px;
+  color: var(--text-2); border-radius: var(--r-sm); font-size: 18px;
+  display: flex; align-items: center; transition: background 0.12s;
+}
+.modal-close:hover { background: var(--bg); }
+.modal-body   { padding: 20px 24px; }
+.modal-footer {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 14px 24px 20px;
+  border-top: 1px solid var(--border);
+}
+.field-hint {
+  font-size: 12px; color: var(--text-2);
+  display: flex; align-items: center; gap: 5px;
+  margin-top: -6px; margin-bottom: 12px;
+}
+.field-hint i { font-size: 13px; color: var(--blue); flex-shrink: 0; }
+.input-eye { position: relative; }
+.input-eye .form-input { padding-right: 40px; }
+.eye-btn {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: var(--text-2);
+  font-size: 16px; padding: 2px; display: flex; align-items: center;
+}
+.eye-btn:hover { color: var(--text-1); }
+
+/* ── USER TABLE ────────────────────────────────── */
+.user-table-wrap {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden;
+}
+.user-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.user-table thead th {
+  padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600;
+  color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em;
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+.user-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.user-table tbody tr:last-child { border-bottom: none; }
+.user-table tbody tr:hover { background: var(--bg); }
+.user-table td { padding: 10px 14px; vertical-align: middle; }
+.u-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--blue-bg); color: var(--blue-dk);
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.u-name     { font-weight: 500; }
+.u-username { font-family: monospace; font-size: 12px; color: var(--text-2); }
+.u-email    { color: var(--text-2); }
+.u-date     { color: var(--text-3); font-size: 12px; white-space: nowrap; }
+
+/* ── SIDEBAR USER BADGE ────────────────────────── */
+.sidebar-user {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 0 14px; margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.su-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--blue); color: #fff;
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; letter-spacing: 0.03em;
+}
+.su-name { font-size: 13px; font-weight: 500; color: #fff; line-height: 1.3; }
+.su-role { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 1px; }
+
+/* ── MY TICKETS (Usuário Comum) ─────────────────── */
+.my-tickets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.my-ticket-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--r-lg); padding: 18px 20px;
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 10px;
+  transition: box-shadow 0.15s;
+}
+.my-ticket-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+.myt-aberto       { border-left-color: var(--blue);  }
+.myt-em_andamento { border-left-color: var(--amber); }
+.myt-fechado      { border-left-color: var(--green); }
+.myt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.myt-id   { font-family: monospace; font-size: 11px; color: var(--text-3); font-weight: 600; }
+.myt-cat  { font-size: 14px; font-weight: 600; color: var(--text-1); line-height: 1.3; }
+.myt-subcat { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.myt-desc {
+  font-size: 12px; color: var(--text-2); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.myt-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; flex-wrap: wrap; margin-top: 2px;
+}
+.myt-time { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 3px; }
+.myt-time i { font-size: 12px; }
+
+/* ── SOFTWARE PICKER ───────────────────────────── */
+.sw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.sw-opt {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--border-md);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 13px; font-family: inherit; color: var(--text-1);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  text-align: left;
+  white-space: nowrap; overflow: hidden;
+}
+.sw-opt:hover { border-color: var(--blue); background: var(--blue-bg); }
+.sw-opt.sw-sel {
+  border-color: var(--blue);
+  background: var(--blue-bg);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+  font-weight: 500;
+  color: var(--blue-dk);
+}
+.sw-logo {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.sw-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.sw-name { overflow: hidden; text-overflow: ellipsis; }
+.t-subcat { color: var(--text-2); font-weight: 400; font-size: 13px; }
