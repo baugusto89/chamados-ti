@@ -40,6 +40,7 @@ function initDB() {
             indices: ['username', 'email'],
           });
         }
+        migrateStatuses();
         loki.saveDatabase(() => resolve());
       },
       autosave:         true,
@@ -174,12 +175,14 @@ function checkDuplicate(user_name, type, category, subcategory) {
 function getStats() {
   const all = col.data;
   return {
-    total:        all.length,
-    abertos:      all.filter(t => t.status === 'aberto').length,
-    em_andamento: all.filter(t => t.status === 'em_andamento').length,
-    fechados:     all.filter(t => t.status === 'fechado').length,
-    requisicoes:  all.filter(t => t.type   === 'requisicao').length,
-    incidentes:   all.filter(t => t.type   === 'incidente').length,
+    total:              all.length,
+    abertos:            all.filter(t => t.status === 'aberto').length,
+    em_analise:         all.filter(t => t.status === 'em_analise').length,
+    pendente:           all.filter(t => t.status === 'pendente').length,
+    pendente_terceiros: all.filter(t => t.status === 'pendente_terceiros').length,
+    fechados:           all.filter(t => t.status === 'fechado').length,
+    requisicoes:        all.filter(t => t.type   === 'requisicao').length,
+    incidentes:         all.filter(t => t.type   === 'incidente').length,
   };
 }
 
@@ -189,6 +192,14 @@ function getStatsByCategory(type) {
   return Object.entries(counts)
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total);
+}
+
+function migrateStatuses() {
+  if (!col) return;
+  const docs = col.find({ status: 'em_andamento' });
+  if (!docs.length) return;
+  docs.forEach(doc => { doc.status = 'em_analise'; col.update(doc); });
+  console.log(`✅  Migration: ${docs.length} ticket(s) em_andamento → em_analise`);
 }
 
 function generateTempPassword() {
@@ -201,7 +212,7 @@ function generateTempPassword() {
 // ─── VALIDATION ───────────────────────────────────────────────────────────────
 const VALID_TYPES      = new Set(['requisicao', 'incidente']);
 const VALID_PRIORITIES = new Set(['baixa', 'media', 'alta']);
-const VALID_STATUSES   = new Set(['aberto', 'em_andamento', 'fechado']);
+const VALID_STATUSES   = new Set(['aberto', 'em_analise', 'pendente', 'pendente_terceiros', 'fechado']);
 
 const CATS = {
   requisicao: new Set([
@@ -378,6 +389,26 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json(req.session);
 });
 
+app.post('/api/auth/change-own-password', requireAuth, writeLimiter, (req, res) => {
+  try {
+    const currentPassword = (req.body.currentPassword || '').trim();
+    const newPassword     = (req.body.newPassword     || '').trim();
+    if (!currentPassword || !newPassword || newPassword.length < 6)
+      return res.status(400).json({ error: 'Dados inválidos.' });
+    const doc = colUsers.findOne({ id: req.session.userId });
+    if (!doc) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    if (!verifyPassword(currentPassword, doc.password))
+      return res.status(401).json({ error: 'Senha atual incorreta.' });
+    doc.password   = hashPassword(newPassword);
+    doc.updated_at = Date.now();
+    colUsers.update(doc);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[POST /auth/change-own-password]', err);
+    res.status(500).json({ error: 'Erro interno.' });
+  }
+});
+
 app.post('/api/auth/change-password', requireAuth, (req, res) => {
   try {
     const password = (req.body.password || '').trim();
@@ -459,11 +490,66 @@ api.post('/tickets', writeLimiter, (req, res) => {
     const now = Date.now();
     const id  = generateId(col.data.length);
 
-    const ticket = insertTicket({ id, ...body, status: 'aberto', created_by: req.session.userId, created_at: now, updated_at: now });
+    const techs    = colUsers.find({ role: 'tecnico' });
+    const assigned = techs.length ? techs[Math.floor(Math.random() * techs.length)] : null;
+    const ticket = insertTicket({
+      id, ...body,
+      status:           'aberto',
+      created_by:       req.session.userId,
+      assigned_to:      assigned?.id   || null,
+      assigned_to_name: assigned?.name || null,
+      procedures:       [],
+      created_at:       now,
+      updated_at:       now,
+    });
     res.status(201).json(ticket);
   } catch (err) {
     console.error('[POST /tickets]', err);
     res.status(500).json({ error: 'Erro interno ao criar chamado.' });
+  }
+});
+
+// PATCH /api/tickets/:id — general update (status, procedure, reassign)
+api.patch('/tickets/:id', writeLimiter, (req, res) => {
+  try {
+    if (req.session.role === 'usuario')
+      return res.status(403).json({ error: 'Sem permissão.' });
+
+    const id  = sanitize(req.params.id, 20);
+    const doc = col.findOne({ id });
+    if (!doc) return res.status(404).json({ error: 'Chamado não encontrado.' });
+
+    const now = Date.now();
+
+    if (req.body.status !== undefined) {
+      const status = sanitize(req.body.status, 20);
+      if (!VALID_STATUSES.has(status))
+        return res.status(400).json({ error: 'Status inválido.' });
+      doc.status = status;
+    }
+
+    if (req.body.assigned_to !== undefined) {
+      const techDoc = colUsers.findOne({ id: req.body.assigned_to });
+      if (!techDoc || techDoc.role !== 'tecnico')
+        return res.status(400).json({ error: 'Técnico não encontrado.' });
+      doc.assigned_to      = techDoc.id;
+      doc.assigned_to_name = techDoc.name;
+    }
+
+    if (req.body.procedure) {
+      const text = sanitize(req.body.procedure, 2000);
+      if (text.length < 5)
+        return res.status(400).json({ error: 'Procedimento muito curto (mínimo 5 caracteres).' });
+      if (!Array.isArray(doc.procedures)) doc.procedures = [];
+      doc.procedures.push({ text, technician_name: req.session.name, created_at: now });
+    }
+
+    doc.updated_at = now;
+    col.update(doc);
+    res.json(clean(col.findOne({ id })));
+  } catch (err) {
+    console.error('[PATCH /tickets/:id]', err);
+    res.status(500).json({ error: 'Erro interno.' });
   }
 });
 
@@ -563,6 +649,16 @@ api.get('/stats', (_req, res) => {
 // GET /api/categories
 api.get('/categories', (_req, res) => {
   res.json({ requisicao: [...CATS.requisicao], incidente: [...CATS.incidente] });
+});
+
+// GET /api/technicians
+api.get('/technicians', (_req, res) => {
+  try {
+    res.json(colUsers.find({ role: 'tecnico' }).map(cleanUser));
+  } catch (err) {
+    console.error('[GET /technicians]', err);
+    res.status(500).json({ error: 'Erro interno.' });
+  }
 });
 
 // ─── USER ROUTES ──────────────────────────────────────────────────────────────

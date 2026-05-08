@@ -31,7 +31,8 @@ let formState   = { type: 'requisicao', priority: 'media', software: '' };
 let dupTimer      = null;
 let currentUser   = null;
 let editingUserId = null;
-let usersCache    = [];
+let usersCache      = [];
+let currentTicketId = null;
 
 // ─── SOFTWARE LIST ────────────────────────────────────────────────────────────
 // logo: { type:'icon', value:'ti-*', color:'#hex' }  → tabler icon (no external request)
@@ -52,6 +53,192 @@ const SOFTWARE_LIST = [
   { name: 'Amplitude',    logo: { type: 'img',  value: 'amplitude.com' } },
   { name: 'Gmail',        logo: { type: 'icon', value: 'ti-brand-gmail',   color: '#ea4335' } },
 ];
+
+// ─── TRANSLATIONS ────────────────────────────────────────────────────────────
+const TRANSLATIONS = {
+  pt: {
+    'brand.name':'Central de Chamados','brand.sub':'Suporte TI',
+    'auth.username':'Usuário','auth.password':'Senha','auth.login':'Entrar',
+    'auth.username_ph':'seu.usuario','auth.fill_fields':'Preencha usuário e senha.',
+    'auth.logging_in':'Entrando...',
+    'nav.menu':'Menu','nav.dashboard':'Dashboard','nav.new_ticket':'Novo chamado',
+    'nav.tickets':'Chamados','nav.history':'Histórico geral','nav.requests':'Requisições',
+    'nav.incidents':'Incidentes','nav.admin':'Administração','nav.users':'Usuários',
+    'nav.my_tickets':'Meus chamados',
+    'counter.open':'Abertos','counter.in_analysis':'Em análise','counter.total':'Total geral',
+    'btn.new_ticket':'Novo chamado','btn.logout':'Sair','btn.cancel':'Cancelar',
+    'btn.save':'Salvar','btn.view':'Ver','btn.view_details':'Ver detalhes',
+    'status.aberto':'Aberto','status.em_analise':'Em análise','status.pendente':'Pendente',
+    'status.pendente_terceiros':'Pend. Terceiros','status.fechado':'Fechado',
+    'type.requisicao':'Requisição','type.incidente':'Incidente',
+    'priority.alta':'Alta','priority.media':'Média','priority.baixa':'Baixa',
+    'role.admin':'Administrador','role.tecnico':'Técnico','role.usuario':'Usuário',
+    'dash.overview':'Visão geral','dash.updated':'Atualizado agora',
+    'dash.total':'Total de chamados','dash.open':'Abertos','dash.in_analysis':'Em análise',
+    'dash.pending':'Pendente','dash.pending_third':'Pend. Terceiros','dash.closed':'Fechados',
+    'dash.requests':'Requisições','dash.incidents':'Incidentes',
+    'dash.req_by_type':'Requisições por tipo','dash.inc_by_type':'Incidentes por tipo',
+    'dash.recent':'Chamados recentes','dash.see_all':'Ver todos',
+    'ticket.new':'Abrir novo chamado','ticket.type':'Tipo de chamado',
+    'ticket.requester':'Solicitante','ticket.priority':'Prioridade',
+    'ticket.category':'Categoria','ticket.description':'Descrição detalhada',
+    'ticket.cancel':'Cancelar','ticket.submit':'Registrar chamado',
+    'ticket.select_cat':'Selecione uma categoria...',
+    'ticket.req_title':'Requisição',
+    'ticket.req_desc':'Solicitar acesso a softwares, serviços, equipamentos ou licenças de TI',
+    'ticket.inc_title':'Incidente',
+    'ticket.inc_desc':'Reportar algo que parou de funcionar ou está com problema',
+    'ticket.req_ph':'Descreva o que precisa, para qual projeto ou finalidade, e informe qualquer aprovação já obtida...',
+    'ticket.inc_ph':'Descreva o problema: o que ocorre, quando começou, quais erros aparecem e o que já foi tentado...',
+    'ticket.submitting':'Registrando...',
+    'history.title':'Histórico de Chamados','history.search':'Buscar chamado, usuário...',
+    'history.filter_user':'Filtrar por usuário','history.all_types':'Todos os tipos',
+    'history.all_status':'Todos os status',
+    'td.back':'Voltar','td.status':'Status','td.type':'Tipo','td.priority':'Prioridade',
+    'td.requester':'Solicitante','td.category':'Categoria','td.technician':'Técnico',
+    'td.opened_at':'Aberto em','td.updated_at':'Última atualização','td.description':'Descrição',
+    'td.procedures':'Procedimentos técnicos','td.no_procedures':'Nenhum procedimento registrado.',
+    'td.update':'Atualizar chamado','td.assign':'Atribuir a técnico',
+    'td.keep_current':'— Manter atual —','td.add_procedure':'Registrar procedimento',
+    'td.procedure_ph':'Descreva o procedimento técnico realizado...','td.save':'Salvar',
+    'td.unassigned':'Não atribuído',
+    'users.title':'Usuários','users.new':'Novo usuário','users.name':'Nome',
+    'users.username':'Usuário','users.email':'E-mail','users.role':'Perfil',
+    'users.created_at':'Cadastro',
+    'mytickets.title':'Meus Chamados','mytickets.empty':'Você ainda não abriu nenhum chamado.',
+    'toast.ticket_created':'Chamado registrado com sucesso!',
+    'toast.ticket_updated':'Chamado atualizado!','toast.ticket_deleted':'Chamado excluído',
+    'toast.status_updated':'Status atualizado','toast.user_created':'Usuário cadastrado com sucesso!',
+    'toast.user_updated':'Usuário atualizado com sucesso!','toast.user_deleted':'Usuário excluído.',
+    'toast.password_changed':'Senha alterada com sucesso!',
+    'pwd.change_title':'Alterar senha','pwd.current':'Senha atual *','pwd.new':'Nova senha *',
+    'pwd.confirm':'Confirmar nova senha *','pwd.save':'Alterar senha',
+    'pwd.wrong':'Senha atual incorreta.','pwd.no_match':'As senhas não coincidem.',
+    'pwd.min_length':'A senha deve ter ao menos 6 caracteres.',
+    'view.dashboard':'Dashboard','view.new':'Novo Chamado','view.history':'Histórico de Chamados',
+    'view.users':'Usuários','view.mytickets':'Meus Chamados','view.ticket':'Detalhe do Chamado',
+    'loading':'Carregando...','confirm.delete_ticket':'Excluir este chamado definitivamente?',
+    'confirm.delete_user':'Excluir este usuário?',
+    'empty.no_tickets':'Nenhum chamado encontrado','empty.no_data':'Sem dados ainda',
+    'total_label':'total',
+    'req_count_label':'total',
+  },
+  en: {
+    'brand.name':'IT Help Desk','brand.sub':'IT Support',
+    'auth.username':'Username','auth.password':'Password','auth.login':'Login',
+    'auth.username_ph':'your.username','auth.fill_fields':'Please fill in username and password.',
+    'auth.logging_in':'Logging in...',
+    'nav.menu':'Menu','nav.dashboard':'Dashboard','nav.new_ticket':'New ticket',
+    'nav.tickets':'Tickets','nav.history':'All tickets','nav.requests':'Requests',
+    'nav.incidents':'Incidents','nav.admin':'Administration','nav.users':'Users',
+    'nav.my_tickets':'My tickets',
+    'counter.open':'Open','counter.in_analysis':'In analysis','counter.total':'Total',
+    'btn.new_ticket':'New ticket','btn.logout':'Logout','btn.cancel':'Cancel',
+    'btn.save':'Save','btn.view':'View','btn.view_details':'View details',
+    'status.aberto':'Open','status.em_analise':'In analysis','status.pendente':'Pending',
+    'status.pendente_terceiros':'Pend. 3rd party','status.fechado':'Closed',
+    'type.requisicao':'Request','type.incidente':'Incident',
+    'priority.alta':'High','priority.media':'Medium','priority.baixa':'Low',
+    'role.admin':'Administrator','role.tecnico':'Technician','role.usuario':'User',
+    'dash.overview':'Overview','dash.updated':'Just updated',
+    'dash.total':'Total tickets','dash.open':'Open','dash.in_analysis':'In analysis',
+    'dash.pending':'Pending','dash.pending_third':'Pend. 3rd party','dash.closed':'Closed',
+    'dash.requests':'Requests','dash.incidents':'Incidents',
+    'dash.req_by_type':'Requests by type','dash.inc_by_type':'Incidents by type',
+    'dash.recent':'Recent tickets','dash.see_all':'View all',
+    'ticket.new':'Open new ticket','ticket.type':'Ticket type',
+    'ticket.requester':'Requester','ticket.priority':'Priority',
+    'ticket.category':'Category','ticket.description':'Detailed description',
+    'ticket.cancel':'Cancel','ticket.submit':'Submit ticket',
+    'ticket.select_cat':'Select a category...',
+    'ticket.req_title':'Request',
+    'ticket.req_desc':'Request access to software, services, equipment or IT licenses',
+    'ticket.inc_title':'Incident',
+    'ticket.inc_desc':'Report something that stopped working or has a problem',
+    'ticket.req_ph':'Describe what you need, for which project or purpose...',
+    'ticket.inc_ph':'Describe the problem: what happens, when it started, what errors appear...',
+    'ticket.submitting':'Submitting...',
+    'history.title':'Ticket History','history.search':'Search ticket, user...',
+    'history.filter_user':'Filter by user','history.all_types':'All types',
+    'history.all_status':'All statuses',
+    'td.back':'Back','td.status':'Status','td.type':'Type','td.priority':'Priority',
+    'td.requester':'Requester','td.category':'Category','td.technician':'Technician',
+    'td.opened_at':'Opened at','td.updated_at':'Last updated','td.description':'Description',
+    'td.procedures':'Technical procedures','td.no_procedures':'No procedures recorded yet.',
+    'td.update':'Update ticket','td.assign':'Assign to technician',
+    'td.keep_current':'— Keep current —','td.add_procedure':'Add procedure',
+    'td.procedure_ph':'Describe the technical procedure performed...','td.save':'Save',
+    'td.unassigned':'Unassigned',
+    'users.title':'Users','users.new':'New user','users.name':'Name',
+    'users.username':'Username','users.email':'E-mail','users.role':'Role',
+    'users.created_at':'Created at',
+    'mytickets.title':'My Tickets','mytickets.empty':'You have not opened any tickets yet.',
+    'toast.ticket_created':'Ticket submitted successfully!',
+    'toast.ticket_updated':'Ticket updated!','toast.ticket_deleted':'Ticket deleted',
+    'toast.status_updated':'Status updated','toast.user_created':'User created successfully!',
+    'toast.user_updated':'User updated successfully!','toast.user_deleted':'User deleted.',
+    'toast.password_changed':'Password changed successfully!',
+    'pwd.change_title':'Change password','pwd.current':'Current password *',
+    'pwd.new':'New password *','pwd.confirm':'Confirm new password *',
+    'pwd.save':'Change password','pwd.wrong':'Current password is incorrect.',
+    'pwd.no_match':'Passwords do not match.',
+    'pwd.min_length':'Password must be at least 6 characters.',
+    'view.dashboard':'Dashboard','view.new':'New Ticket','view.history':'Ticket History',
+    'view.users':'Users','view.mytickets':'My Tickets','view.ticket':'Ticket Detail',
+    'loading':'Loading...','confirm.delete_ticket':'Permanently delete this ticket?',
+    'confirm.delete_user':'Delete this user?',
+    'empty.no_tickets':'No tickets found','empty.no_data':'No data yet',
+    'total_label':'total',
+    'req_count_label':'total',
+  },
+};
+
+let lang = localStorage.getItem('ct_lang') || 'pt';
+
+function t(key) {
+  return (TRANSLATIONS[lang] || TRANSLATIONS.pt)[key] || key;
+}
+
+function toggleLang() {
+  lang = lang === 'pt' ? 'en' : 'pt';
+  localStorage.setItem('ct_lang', lang);
+  applyTranslations();
+  render();
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const val = t(el.getAttribute('data-i18n'));
+    if (val) el.textContent = val;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const val = t(el.getAttribute('data-i18n-placeholder'));
+    if (val) el.placeholder = val;
+  });
+  const langLabel      = document.getElementById('lang-label');
+  const loginLangLabel = document.getElementById('login-lang-label');
+  if (langLabel)      langLabel.textContent      = lang === 'pt' ? 'PT' : 'EN';
+  if (loginLangLabel) loginLangLabel.textContent = lang === 'pt' ? 'PT' : 'EN';
+  document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+  document.title = lang === 'pt' ? 'Central de Chamados TI' : 'IT Help Desk';
+  if (currentUser) applyRoleUI(currentUser.role);
+  const titles = {
+    dashboard: t('view.dashboard'), new: t('view.new'), history: t('view.history'),
+    users: t('view.users'), mytickets: t('view.mytickets'), ticket: t('view.ticket'),
+  };
+  const titleEl = document.getElementById('topbar-title');
+  if (titleEl && titles[view]) titleEl.textContent = titles[view];
+}
+
+// ─── STATUS MAP ───────────────────────────────────────────────────────────────
+const STATUS_MAP = {
+  aberto:             { label: 'Aberto',          cls: 'b-blue',   icon: 'ti-circle-dot'   },
+  em_analise:         { label: 'Em análise',       cls: 'b-amber',  icon: 'ti-loader-2'     },
+  pendente:           { label: 'Pendente',         cls: 'b-orange', icon: 'ti-clock-pause'  },
+  pendente_terceiros: { label: 'Pend. Terceiros',  cls: 'b-purple', icon: 'ti-users'        },
+  fechado:            { label: 'Fechado',          cls: 'b-green',  icon: 'ti-circle-check' },
+};
+const STATUS_OPTIONS = ['aberto', 'em_analise', 'pendente', 'pendente_terceiros', 'fechado'];
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function fmtDate(ts) {
@@ -77,14 +264,14 @@ function destroyCharts() {
 
 function updateSidebar(stats) {
   if (!stats) return;
-  const { abertos, em_andamento, total } = stats;
-  document.getElementById('cnt-open').textContent  = abertos       || 0;
-  document.getElementById('cnt-prog').textContent  = em_andamento  || 0;
-  document.getElementById('cnt-total').textContent = total         || 0;
+  const { abertos, em_analise, total } = stats;
+  document.getElementById('cnt-open').textContent  = abertos    || 0;
+  document.getElementById('cnt-prog').textContent  = em_analise || 0;
+  document.getElementById('cnt-total').textContent = total      || 0;
 }
 
 // ─── ROLE UI ──────────────────────────────────────────────────────────────────
-const ROLE_LABELS = { admin: 'Administrador', tecnico: 'Técnico', usuario: 'Usuário' };
+const ROLE_LABELS = { admin: 'role.admin', tecnico: 'role.tecnico', usuario: 'role.usuario' };
 
 function applyRoleUI(role) {
   const chamadoSection = document.getElementById('nav-section-chamados');
@@ -101,17 +288,17 @@ function applyRoleUI(role) {
     show(chamadoSection); show(chamadoDivider);
     hide(adminSection);   hide(adminDivider);
     hide(counters);
-    if (dashBtn) dashBtn.innerHTML = '<i class="ti ti-ticket" aria-hidden="true"></i> Meus chamados';
+    if (dashBtn) dashBtn.innerHTML = `<i class="ti ti-ticket" aria-hidden="true"></i> <span data-i18n="nav.my_tickets">${t('nav.my_tickets')}</span>`;
   } else if (role === 'tecnico') {
     show(chamadoSection); show(chamadoDivider);
     hide(adminSection);   hide(adminDivider);
     show(counters);
-    if (dashBtn) dashBtn.innerHTML = '<i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard';
+    if (dashBtn) dashBtn.innerHTML = `<i class="ti ti-layout-dashboard" aria-hidden="true"></i> <span data-i18n="nav.dashboard">${t('nav.dashboard')}</span>`;
   } else {
     show(chamadoSection); show(chamadoDivider);
     show(adminSection);   show(adminDivider);
     show(counters);
-    if (dashBtn) dashBtn.innerHTML = '<i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard';
+    if (dashBtn) dashBtn.innerHTML = `<i class="ti ti-layout-dashboard" aria-hidden="true"></i> <span data-i18n="nav.dashboard">${t('nav.dashboard')}</span>`;
   }
 }
 
@@ -122,7 +309,7 @@ function updateUserBadge(user) {
   const roleEl   = document.getElementById('su-role');
   if (avatarEl) avatarEl.textContent = user.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
   if (nameEl)   nameEl.textContent   = user.name;
-  if (roleEl)   roleEl.textContent   = ROLE_LABELS[user.role] || user.role;
+  if (roleEl)   roleEl.textContent   = t(ROLE_LABELS[user.role] || user.role);
 }
 
 // ─── ROUTING ─────────────────────────────────────────────────────────────────
@@ -153,8 +340,8 @@ function go(v, typeFilter) {
   if (v === 'history' && typeFilter === 'incidente')  document.getElementById('nav-inc')?.classList.add('active-inc');
 
   const titles = {
-    dashboard: 'Dashboard', new: 'Novo Chamado', history: 'Histórico de Chamados',
-    users: 'Usuários', mytickets: 'Meus Chamados',
+    dashboard: t('view.dashboard'), new: t('view.new'), history: t('view.history'),
+    users: t('view.users'), mytickets: t('view.mytickets'), ticket: t('view.ticket'),
   };
   document.getElementById('topbar-title').textContent = titles[v] || '';
 
@@ -171,28 +358,30 @@ function render() {
   else if (view === 'history')    renderHistory();
   else if (view === 'users')      renderUsers();
   else if (view === 'mytickets')  renderMyTickets();
+  else if (view === 'ticket')     renderTicketDetail(currentTicketId);
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 async function renderDashboard() {
+  Object.keys(charts).forEach(k => { if (charts[k]) { charts[k].destroy(); charts[k] = null; } });
   const el = document.getElementById('app');
   el.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">Visão geral</h1>
-      <span style="font-size:12px;color:var(--text-3)" id="dash-ts">Carregando...</span>
+      <h1 class="page-title">${t('dash.overview')}</h1>
+      <span style="font-size:12px;color:var(--text-3)" id="dash-ts">${t('loading')}</span>
     </div>
     <div id="metrics" class="metrics"><div class="loader"><div class="spinner"></div></div></div>
     <div class="charts-row">
       <div class="card">
         <div class="card-header">
-          <div class="card-title" style="color:var(--blue)"><i class="ti ti-file-invoice" aria-hidden="true"></i> Requisições por tipo</div>
+          <div class="card-title" style="color:var(--blue)"><i class="ti ti-file-invoice" aria-hidden="true"></i> ${t('dash.req_by_type')}</div>
           <span class="card-badge b-blue" id="req-count">—</span>
         </div>
         <div id="req-chart-area"><div class="loader"><div class="spinner"></div></div></div>
       </div>
       <div class="card">
         <div class="card-header">
-          <div class="card-title" style="color:var(--coral)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Incidentes por tipo</div>
+          <div class="card-title" style="color:var(--coral)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> ${t('dash.inc_by_type')}</div>
           <span class="card-badge b-coral" id="inc-count">—</span>
         </div>
         <div id="inc-chart-area"><div class="loader"><div class="spinner"></div></div></div>
@@ -200,8 +389,8 @@ async function renderDashboard() {
     </div>
     <div class="recent-card">
       <div class="recent-head">
-        <span style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:600">Chamados recentes</span>
-        <button class="btn btn-sm" onclick="go('history')">Ver todos <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+        <span style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:600">${t('dash.recent')}</span>
+        <button class="btn btn-sm" onclick="go('history')">${t('dash.see_all')} <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
       </div>
       <div id="recent-list"><div class="loader"><div class="spinner"></div></div></div>
     </div>`;
@@ -214,33 +403,41 @@ async function renderDashboard() {
 
     const s = statsData.overview;
     updateSidebar(s);
-    document.getElementById('dash-ts').textContent = 'Atualizado agora';
+    document.getElementById('dash-ts').textContent = t('dash.updated');
 
     // Metrics
     document.getElementById('metrics').innerHTML = `
       <div class="metric m-neutral">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-ticket" aria-hidden="true"></i></div></div>
-        <div class="metric-num">${s.total}</div><div class="metric-lbl">Total de chamados</div>
+        <div class="metric-num">${s.total}</div><div class="metric-lbl">${t('dash.total')}</div>
       </div>
       <div class="metric m-blue">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-circle-dot" aria-hidden="true"></i></div></div>
-        <div class="metric-num">${s.abertos}</div><div class="metric-lbl">Abertos</div>
+        <div class="metric-num">${s.abertos}</div><div class="metric-lbl">${t('dash.open')}</div>
       </div>
       <div class="metric m-amber">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-loader-2" aria-hidden="true"></i></div></div>
-        <div class="metric-num">${s.em_andamento}</div><div class="metric-lbl">Em andamento</div>
+        <div class="metric-num">${s.em_analise}</div><div class="metric-lbl">${t('dash.in_analysis')}</div>
+      </div>
+      <div class="metric m-orange">
+        <div class="metric-top"><div class="metric-icon"><i class="ti ti-clock-pause" aria-hidden="true"></i></div></div>
+        <div class="metric-num">${s.pendente}</div><div class="metric-lbl">${t('dash.pending')}</div>
+      </div>
+      <div class="metric m-purple">
+        <div class="metric-top"><div class="metric-icon"><i class="ti ti-users" aria-hidden="true"></i></div></div>
+        <div class="metric-num">${s.pendente_terceiros}</div><div class="metric-lbl">${t('dash.pending_third')}</div>
       </div>
       <div class="metric m-green">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-circle-check" aria-hidden="true"></i></div></div>
-        <div class="metric-num">${s.fechados}</div><div class="metric-lbl">Fechados</div>
+        <div class="metric-num">${s.fechados}</div><div class="metric-lbl">${t('dash.closed')}</div>
       </div>
       <div class="metric m-blue">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-file-invoice" aria-hidden="true"></i></div></div>
-        <div class="metric-num">${s.requisicoes}</div><div class="metric-lbl">Requisições</div>
+        <div class="metric-num">${s.requisicoes}</div><div class="metric-lbl">${t('dash.requests')}</div>
       </div>
       <div class="metric m-coral">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div></div>
-        <div class="metric-num">${s.incidentes}</div><div class="metric-lbl">Incidentes</div>
+        <div class="metric-num">${s.incidentes}</div><div class="metric-lbl">${t('dash.incidents')}</div>
       </div>`;
 
     // Charts
@@ -255,7 +452,7 @@ async function renderDashboard() {
     // Recent
     const rows = ticketsData.tickets;
     document.getElementById('recent-list').innerHTML = rows.length
-      ? `<div class="t-list">${rows.map(t => ticketRow(t, false)).join('')}</div>`
+      ? `<div class="t-list">${rows.map(tk => ticketRow(tk, false)).join('')}</div>`
       : `<div class="empty"><i class="ti ti-inbox" aria-hidden="true"></i><p>Nenhum chamado. <button class="empty-link" onclick="go('new')">Abrir primeiro →</button></p></div>`;
 
   } catch (err) {
@@ -323,29 +520,29 @@ function buildChart(key, data, areaId, countId, type, palette) {
 }
 
 // ─── TICKET ROW ───────────────────────────────────────────────────────────────
-function ticketRow(t, showDup) {
-  const isReq = t.type === 'requisicao';
+function ticketRow(tk, showDup) {
+  const isReq = tk.type === 'requisicao';
   const icon  = isReq ? 'ti-file-invoice' : 'ti-alert-triangle';
   const cls   = isReq ? 'req' : 'inc';
 
-  const sMap = {
-    aberto:       `<span class="badge b-blue"><i class="ti ti-circle-dot"></i>Aberto</span>`,
-    em_andamento: `<span class="badge b-amber"><i class="ti ti-loader-2"></i>Em andamento</span>`,
-    fechado:      `<span class="badge b-green"><i class="ti ti-circle-check"></i>Fechado</span>`,
-  };
+  const sMap = Object.fromEntries(
+    Object.entries(STATUS_MAP).map(([k, v]) =>
+      [k, `<span class="badge ${v.cls}"><i class="ti ${v.icon}"></i>${t('status.'+k)||v.label}</span>`]
+    )
+  );
   const pMap = {
-    alta:  `<span class="badge b-coral">Alta</span>`,
-    media: `<span class="badge b-amber">Média</span>`,
-    baixa: `<span class="badge b-gray">Baixa</span>`,
+    alta:  `<span class="badge b-coral">${t('priority.alta')}</span>`,
+    media: `<span class="badge b-amber">${t('priority.media')}</span>`,
+    baixa: `<span class="badge b-gray">${t('priority.baixa')}</span>`,
   };
 
   const typeBadge = isReq
-    ? `<span class="badge b-blue">Requisição</span>`
-    : `<span class="badge b-coral">Incidente</span>`;
+    ? `<span class="badge b-blue">${t('type.requisicao')}</span>`
+    : `<span class="badge b-coral">${t('type.incidente')}</span>`;
 
   let dup = '';
-  if (showDup && t._dup) {
-    const dc = t._dup;
+  if (showDup && tk._dup) {
+    const dc = tk._dup;
     if (dc.kind === 'warning') {
       dup = `<div class="dup-tag dup-warn"><i class="ti ti-alert-triangle" aria-hidden="true"></i><span>${dc.message}</span></div>`;
     } else {
@@ -353,8 +550,8 @@ function ticketRow(t, showDup) {
     }
   }
 
-  const pClass = t.type === 'incidente' ? `p-${t.priority}` : '';
-  const id = t.id.replace(/'/g, '');
+  const pClass = tk.type === 'incidente' ? `p-${tk.priority}` : '';
+  const id = tk.id.replace(/'/g, '');
   const isUsuario = currentUser?.role === 'usuario';
 
   return `
@@ -362,25 +559,23 @@ function ticketRow(t, showDup) {
     <div class="t-icon ${cls}"><i class="ti ${icon}" aria-hidden="true"></i></div>
     <div class="t-body">
       <div class="t-meta">
-        <span class="t-id">${t.id}</span>
-        ${typeBadge} ${sMap[t.status] || ''}
-        ${t.type === 'incidente' ? pMap[t.priority] || '' : ''}
+        <span class="t-id">${tk.id}</span>
+        ${typeBadge} ${sMap[tk.status] || ''}
+        ${tk.type === 'incidente' ? pMap[tk.priority] || '' : ''}
       </div>
-      <div class="t-cat">${escHtml(t.category)}${t.subcategory ? `<span class="t-subcat"> · ${escHtml(t.subcategory)}</span>` : ''}</div>
-      <div class="t-user"><i class="ti ti-user" aria-hidden="true"></i>${escHtml(t.user_name)}</div>
-      <div class="t-desc">${escHtml(t.description)}</div>
+      <div class="t-cat">${escHtml(tk.category)}${tk.subcategory ? `<span class="t-subcat"> · ${escHtml(tk.subcategory)}</span>` : ''}</div>
+      <div class="t-user"><i class="ti ti-user" aria-hidden="true"></i>${escHtml(tk.user_name)}</div>
+      <div class="t-desc">${escHtml(tk.description)}</div>
       <div class="t-foot">
-        <span class="t-time"><i class="ti ti-clock" aria-hidden="true"></i>${fmtDate(t.created_at)}</span>
+        <span class="t-time"><i class="ti ti-clock" aria-hidden="true"></i>${fmtDate(tk.created_at)}</span>
       </div>
       ${dup}
     </div>
     <div class="t-actions">
-      ${isUsuario ? `${sMap[t.status] || ''}` : `
-      <select class="status-sel" onchange="updateStatus('${id}', this.value)">
-        <option value="aberto"       ${t.status==='aberto'       ?'selected':''}>Aberto</option>
-        <option value="em_andamento" ${t.status==='em_andamento' ?'selected':''}>Em andamento</option>
-        <option value="fechado"      ${t.status==='fechado'      ?'selected':''}>Fechado</option>
-      </select>
+      ${isUsuario ? `${sMap[tk.status] || ''}` : `
+      <button class="view-btn" onclick="openTicket('${id}')" title="${t('btn.view_details')}" aria-label="${t('btn.view_details')}">
+        <i class="ti ti-eye" aria-hidden="true"></i> ${t('btn.view')}
+      </button>
       <button class="del-btn" onclick="deleteTicket('${id}')" title="Excluir chamado" aria-label="Excluir chamado">
         <i class="ti ti-trash" aria-hidden="true"></i>
       </button>`}
@@ -394,11 +589,16 @@ function escHtml(s) {
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+function openTicket(id) {
+  currentTicketId = id;
+  go('ticket');
+}
+
 // ─── STATUS / DELETE ──────────────────────────────────────────────────────────
 async function updateStatus(id, status) {
   try {
     await api.patch(`/tickets/${encodeURIComponent(id)}/status`, { status });
-    toast('Status atualizado');
+    toast(t('toast.status_updated'));
     const stats = await api.get('/stats');
     updateSidebar(stats.overview);
   } catch (err) {
@@ -408,12 +608,12 @@ async function updateStatus(id, status) {
 }
 
 async function deleteTicket(id) {
-  if (!confirm('Excluir este chamado definitivamente?')) return;
+  if (!confirm(t('confirm.delete_ticket'))) return;
   try {
     await api.delete(`/tickets/${encodeURIComponent(id)}`);
     const row = document.getElementById(`row-${id}`);
     if (row) row.remove();
-    toast('Chamado excluído');
+    toast(t('toast.ticket_deleted'));
     const stats = await api.get('/stats');
     updateSidebar(stats.overview);
   } catch (err) {
@@ -423,28 +623,30 @@ async function deleteTicket(id) {
 
 // ─── HISTORY ─────────────────────────────────────────────────────────────────
 async function renderHistory() {
-  const typeLabel = { requisicao: 'Requisições', incidente: 'Incidentes', '': 'Todos' }[histF.type] || 'Todos';
+  const typeLabel = {
+    requisicao: t('type.requisicao'), incidente: t('type.incidente'), '': t('history.all_types')
+  }[histF.type] || t('history.all_types');
 
   document.getElementById('app').innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">Histórico — ${typeLabel}</h1>
-      <button class="btn btn-primary btn-sm" onclick="go('new')"><i class="ti ti-plus" aria-hidden="true"></i>Novo chamado</button>
+      <h1 class="page-title">${t('history.title')} — ${typeLabel}</h1>
+      <button class="btn btn-primary btn-sm" onclick="go('new')"><i class="ti ti-plus" aria-hidden="true"></i> ${t('btn.new_ticket')}</button>
     </div>
     <div class="filter-bar">
-      <input type="search" placeholder="Buscar chamado, usuário..." id="fq" value="${escHtml(histF.q)}"
+      <input type="search" placeholder="${t('history.search')}" id="fq" value="${escHtml(histF.q)}"
         oninput="histF.q=this.value;histF.page=1;loadHistory()">
-      <input type="text" placeholder="Filtrar por usuário" id="fu" value="${escHtml(histF.user)}"
+      <input type="text" placeholder="${t('history.filter_user')}" id="fu" value="${escHtml(histF.user)}"
         oninput="histF.user=this.value;histF.page=1;loadHistory()" style="max-width:180px">
       <select id="ft" onchange="histF.type=this.value;histF.page=1;loadHistory()">
-        <option value="">Todos os tipos</option>
-        <option value="requisicao" ${histF.type==='requisicao'?'selected':''}>Requisições</option>
-        <option value="incidente"  ${histF.type==='incidente' ?'selected':''}>Incidentes</option>
+        <option value="">${t('history.all_types')}</option>
+        <option value="requisicao" ${histF.type==='requisicao'?'selected':''}>${t('type.requisicao')}</option>
+        <option value="incidente"  ${histF.type==='incidente' ?'selected':''}>${t('type.incidente')}</option>
       </select>
       <select id="fs" onchange="histF.status=this.value;histF.page=1;loadHistory()">
-        <option value="">Todos os status</option>
-        <option value="aberto"       ${histF.status==='aberto'       ?'selected':''}>Abertos</option>
-        <option value="em_andamento" ${histF.status==='em_andamento' ?'selected':''}>Em andamento</option>
-        <option value="fechado"      ${histF.status==='fechado'      ?'selected':''}>Fechados</option>
+        <option value="">${t('history.all_status')}</option>
+        ${STATUS_OPTIONS.map(k =>
+          `<option value="${k}" ${histF.status===k?'selected':''}>${t('status.'+k)||STATUS_MAP[k].label}</option>`
+        ).join('')}
       </select>
     </div>
     <div class="history-card">
@@ -491,7 +693,7 @@ async function _doLoadHistory() {
     );
 
     el.innerHTML = enriched.length
-      ? `<div class="t-list">${enriched.map(t => ticketRow(t, true)).join('')}</div>`
+      ? `<div class="t-list">${enriched.map(tk => ticketRow(tk, true)).join('')}</div>`
       : `<div class="empty"><i class="ti ti-inbox" aria-hidden="true"></i><p>Nenhum chamado encontrado</p></div>`;
 
     const pg = document.getElementById('pagination');
@@ -521,9 +723,9 @@ async function renderMyTickets() {
   const el = document.getElementById('app');
   el.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">Meus Chamados</h1>
+      <h1 class="page-title">${t('mytickets.title')}</h1>
       <button class="btn btn-primary btn-sm" onclick="go('new')">
-        <i class="ti ti-plus" aria-hidden="true"></i> Novo chamado
+        <i class="ti ti-plus" aria-hidden="true"></i> ${t('btn.new_ticket')}
       </button>
     </div>
     <div id="mytickets-body"><div class="loader"><div class="spinner"></div> Carregando...</div></div>`;
@@ -543,14 +745,8 @@ async function renderMyTickets() {
       return;
     }
 
-    const sMap = {
-      aberto:       { label: 'Aberto',        cls: 'b-blue',  icon: 'ti-circle-dot'   },
-      em_andamento: { label: 'Em andamento',  cls: 'b-amber', icon: 'ti-loader-2'     },
-      fechado:      { label: 'Fechado',       cls: 'b-green', icon: 'ti-circle-check' },
-    };
-
     body.innerHTML = `<div class="my-tickets-grid">${tickets.map(t => {
-      const s = sMap[t.status] || sMap.aberto;
+      const s = STATUS_MAP[t.status] || STATUS_MAP.aberto;
       const typeCls = t.type === 'requisicao' ? 'b-blue' : 'b-coral';
       const typeLabel = t.type === 'requisicao' ? 'Requisição' : 'Incidente';
       return `
@@ -568,12 +764,174 @@ async function renderMyTickets() {
           <span class="badge ${s.cls}"><i class="ti ${s.icon}"></i>${s.label}</span>
           <span class="myt-time"><i class="ti ti-clock"></i>${fmtDate(t.created_at)}</span>
         </div>
+        <div style="margin-top:8px">
+          <button class="view-btn" onclick="openTicket('${escHtml(t.id.replace(/'/g,''))}')" style="width:100%;justify-content:center">
+            <i class="ti ti-eye" aria-hidden="true"></i> ${t('btn.view_details')}
+          </button>
+        </div>
       </div>`;
     }).join('')}</div>`;
 
   } catch (err) {
     const body = document.getElementById('mytickets-body');
     if (body) body.innerHTML = `<div class="empty"><i class="ti ti-alert-circle" aria-hidden="true"></i><p>Erro ao carregar chamados.</p></div>`;
+    toast(err.message, 'error');
+  }
+}
+
+// ─── TICKET DETAIL ───────────────────────────────────────────────────────────
+async function renderTicketDetail(id) {
+  const el = document.getElementById('app');
+  if (!id) { go('history'); return; }
+
+  el.innerHTML = `
+    <div class="page-header">
+      <button class="btn btn-sm" onclick="go(currentUser?.role==='usuario'?'mytickets':'history')">
+        <i class="ti ti-arrow-left" aria-hidden="true"></i> ${t('td.back')}
+      </button>
+      <h1 class="page-title" id="td-title">Carregando...</h1>
+    </div>
+    <div id="td-body"><div class="loader"><div class="spinner"></div> Carregando...</div></div>`;
+
+  try {
+    const isEditor = currentUser?.role === 'admin' || currentUser?.role === 'tecnico';
+    const [ticket, technicians] = await Promise.all([
+      api.get(`/tickets/${encodeURIComponent(id)}`),
+      isEditor ? api.get('/technicians') : Promise.resolve([]),
+    ]);
+
+    document.getElementById('td-title').textContent = ticket.id;
+
+    const s    = STATUS_MAP[ticket.status] || STATUS_MAP.aberto;
+    const isReq = ticket.type === 'requisicao';
+    const pBadge = { alta: 'b-coral', media: 'b-amber', baixa: 'b-gray' };
+    const pLabel = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
+
+    const proceduresHtml = (ticket.procedures || []).length
+      ? [...ticket.procedures].reverse().map(p => `
+          <div class="proc-item">
+            <div class="proc-meta">
+              <span class="proc-tech"><i class="ti ti-user-check"></i>${escHtml(p.technician_name)}</span>
+              <span class="proc-time"><i class="ti ti-clock"></i>${fmtDate(p.created_at)}</span>
+            </div>
+            <div class="proc-text">${escHtml(p.text)}</div>
+          </div>`).join('')
+      : `<div class="empty" style="padding:20px"><i class="ti ti-notes-off" aria-hidden="true"></i><p>${t('td.no_procedures')}</p></div>`;
+
+    const safeId = escHtml(id.replace(/'/g, ''));
+    const editorHtml = isEditor ? `
+      <div class="td-form-card">
+        <div class="td-form-title"><i class="ti ti-edit" aria-hidden="true"></i> ${t('td.update')}</div>
+        <div class="form-group">
+          <label class="form-label">${t('td.status')}</label>
+          <select class="form-select" id="td-status">
+            ${STATUS_OPTIONS.map(k =>
+              `<option value="${k}" ${ticket.status===k?'selected':''}>${t('status.'+k)||STATUS_MAP[k].label}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">${t('td.assign')}</label>
+          <select class="form-select" id="td-assign">
+            <option value="">${t('td.keep_current')}</option>
+            ${technicians.map(tech =>
+              `<option value="${tech.id}" ${ticket.assigned_to===tech.id?'selected':''}>${escHtml(tech.name)}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">${t('td.add_procedure')}</label>
+          <textarea class="form-textarea" id="td-procedure" rows="4"
+            placeholder="${t('td.procedure_ph')}"></textarea>
+        </div>
+        <div class="form-actions" style="justify-content:flex-end">
+          <button class="btn btn-primary" onclick="saveTicketDetail('${safeId}')">
+            <i class="ti ti-device-floppy" aria-hidden="true"></i> ${t('td.save')}
+          </button>
+        </div>
+      </div>` : '';
+
+    document.getElementById('td-body').innerHTML = `
+      <div class="ticket-detail-layout">
+        <div class="ticket-detail-main">
+          <div class="td-info-card">
+            <div class="td-info-row">
+              <span class="td-info-label">${t('td.status')}</span>
+              <span class="badge ${s.cls}"><i class="ti ${s.icon}"></i>${s.label}</span>
+            </div>
+            <div class="td-info-row">
+              <span class="td-info-label">${t('td.type')}</span>
+              <span class="badge ${isReq?'b-blue':'b-coral'}">${isReq?t('type.requisicao'):t('type.incidente')}</span>
+            </div>
+            ${ticket.type==='incidente' ? `
+            <div class="td-info-row">
+              <span class="td-info-label">${t('td.priority')}</span>
+              <span class="badge ${pBadge[ticket.priority]||'b-gray'}">${t('priority.'+ticket.priority)||pLabel[ticket.priority]||ticket.priority}</span>
+            </div>` : ''}
+            <div class="td-info-row">
+              <span class="td-info-label">${t('td.requester')}</span>
+              <span>${escHtml(ticket.user_name)}</span>
+            </div>
+            <div class="td-info-row">
+              <span class="td-info-label">${t('td.category')}</span>
+              <span>${escHtml(ticket.category)}${ticket.subcategory?` · ${escHtml(ticket.subcategory)}`:''}</span>
+            </div>
+            <div class="td-info-row">
+              <span class="td-info-label">${t('td.technician')}</span>
+              <span>${ticket.assigned_to_name ? escHtml(ticket.assigned_to_name) : `<em style="color:var(--text-3)">${t('td.unassigned')}</em>`}</span>
+            </div>
+            <div class="td-info-row">
+              <span class="td-info-label">${t('td.opened_at')}</span>
+              <span>${fmtDate(ticket.created_at)}</span>
+            </div>
+            <div class="td-info-row">
+              <span class="td-info-label">${t('td.updated_at')}</span>
+              <span>${fmtDate(ticket.updated_at)}</span>
+            </div>
+            <div class="td-info-row td-desc-row">
+              <span class="td-info-label">${t('td.description')}</span>
+              <p class="td-desc-text">${escHtml(ticket.description)}</p>
+            </div>
+          </div>
+
+          <div class="td-procedures-card">
+            <div class="td-section-title"><i class="ti ti-notes" aria-hidden="true"></i> ${t('td.procedures')}</div>
+            <div id="td-procedures">${proceduresHtml}</div>
+          </div>
+        </div>
+
+        <div class="ticket-detail-side">
+          ${editorHtml}
+        </div>
+      </div>`;
+
+  } catch (err) {
+    document.getElementById('td-body').innerHTML =
+      `<div class="empty"><i class="ti ti-alert-circle"></i><p>${escHtml(err.message)}</p></div>`;
+    toast(err.message, 'error');
+  }
+}
+
+async function saveTicketDetail(id) {
+  const statusEl = document.getElementById('td-status');
+  const assignEl = document.getElementById('td-assign');
+  const procEl   = document.getElementById('td-procedure');
+  if (!statusEl) return;
+
+  const payload = { status: statusEl.value };
+  if (assignEl?.value)              payload.assigned_to = assignEl.value;
+  const proc = procEl?.value?.trim();
+  if (proc)                         payload.procedure   = proc;
+
+  try {
+    await api.patch(`/tickets/${encodeURIComponent(id)}`, payload);
+    toast(t('toast.ticket_updated'));
+    const [, stats] = await Promise.all([
+      renderTicketDetail(id),
+      api.get('/stats'),
+    ]);
+    updateSidebar(stats.overview);
+  } catch (err) {
     toast(err.message, 'error');
   }
 }
@@ -587,44 +945,44 @@ function renderNew() {
 
   document.getElementById('app').innerHTML = `
     <div class="form-wrap">
-      <div class="page-header"><h1 class="page-title">Abrir novo chamado</h1></div>
+      <div class="page-header"><h1 class="page-title">${t('ticket.new')}</h1></div>
       <div class="form-card">
         <div style="margin-bottom:18px">
-          <div class="form-label">Tipo de chamado</div>
+          <div class="form-label">${t('ticket.type')}</div>
           <div class="type-grid">
             <button class="type-opt ${formState.type==='requisicao'?'sel-req':''}" onclick="setType('requisicao')">
               <i class="ti ti-file-invoice type-icon" aria-hidden="true"></i>
-              <span class="type-name">Requisição</span>
-              <span class="type-desc">Solicitar acesso a softwares, serviços, equipamentos ou licenças de TI</span>
+              <span class="type-name">${t('ticket.req_title')}</span>
+              <span class="type-desc">${t('ticket.req_desc')}</span>
             </button>
             <button class="type-opt ${formState.type==='incidente'?'sel-inc':''}" onclick="setType('incidente')">
               <i class="ti ti-alert-triangle type-icon" aria-hidden="true"></i>
-              <span class="type-name">Incidente</span>
-              <span class="type-desc">Reportar algo que parou de funcionar ou está com problema</span>
+              <span class="type-name">${t('ticket.inc_title')}</span>
+              <span class="type-desc">${t('ticket.inc_desc')}</span>
             </button>
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="fn">Solicitante *</label>
-            <input class="form-input" id="fn" type="text" placeholder="Nome completo" ${nameValue} ${nameReadonly} oninput="scheduleDupCheck()">
+            <label class="form-label" for="fn">${t('ticket.requester')} *</label>
+            <input class="form-input" id="fn" type="text" placeholder="${t('ticket.requester')}" ${nameValue} ${nameReadonly} oninput="scheduleDupCheck()">
           </div>
           ${formState.type === 'incidente' ? `
           <div class="form-group">
-            <label class="form-label" for="fp">Prioridade</label>
+            <label class="form-label" for="fp">${t('ticket.priority')}</label>
             <select class="form-select" id="fp">
-              <option value="baixa">Baixa</option>
-              <option value="media" selected>Média</option>
-              <option value="alta">Alta</option>
+              <option value="baixa">${t('priority.baixa')}</option>
+              <option value="media" selected>${t('priority.media')}</option>
+              <option value="alta">${t('priority.alta')}</option>
             </select>
           </div>` : '<div></div>'}
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="fc">Categoria *</label>
+          <label class="form-label" for="fc">${t('ticket.category')} *</label>
           <select class="form-select" id="fc" onchange="onCatChange()">
-            <option value="">Selecione uma categoria...</option>
+            <option value="">${t('ticket.select_cat')}</option>
             ${catList.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}
           </select>
         </div>
@@ -634,16 +992,17 @@ function renderNew() {
         <div id="dup-area"></div>
 
         <div class="form-group">
-          <label class="form-label" for="fd">Descrição detalhada *</label>
+          <label class="form-label" for="fd">${t('ticket.description')} *</label>
           <textarea class="form-textarea" id="fd" placeholder="${formState.type === 'requisicao'
-            ? 'Descreva o que precisa, para qual projeto ou finalidade, e informe qualquer aprovação já obtida...'
-            : 'Descreva o problema: o que ocorre, quando começou, quais erros aparecem e o que já foi tentado...'}"></textarea>
+            ? t('ticket.req_ph') : t('ticket.inc_ph')}"></textarea>
         </div>
 
         <div class="form-actions">
-          <button class="btn" onclick="go(currentUser?.role === 'usuario' ? 'mytickets' : 'dashboard')"><i class="ti ti-x" aria-hidden="true"></i>Cancelar</button>
+          <button class="btn" onclick="go(currentUser?.role === 'usuario' ? 'mytickets' : 'dashboard')">
+            <i class="ti ti-x" aria-hidden="true"></i> ${t('ticket.cancel')}
+          </button>
           <button class="btn btn-primary" id="submit-btn" onclick="submitTicket()">
-            <i class="ti ti-send" aria-hidden="true"></i>Registrar chamado
+            <i class="ti ti-send" aria-hidden="true"></i> ${t('ticket.submit')}
           </button>
         </div>
       </div>
@@ -745,18 +1104,18 @@ async function submitTicket() {
   }
 
   const btn = document.getElementById('submit-btn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:14px;height:14px"></div> Registrando...'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = `<div class="spinner" style="width:14px;height:14px"></div> ${t('ticket.submitting')}`; }
 
   try {
     await api.post('/tickets', {
       type: formState.type, category, subcategory, user_name, description, priority,
     });
-    toast('Chamado registrado com sucesso!');
+    toast(t('toast.ticket_created'));
     histF = { q: '', user: '', type: '', status: '', page: 1 };
     go(currentUser?.role === 'usuario' ? 'mytickets' : 'history');
   } catch (err) {
     toast(err.message, 'error');
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i>Registrar chamado'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="ti ti-send" aria-hidden="true"></i> ${t('ticket.submit')}`; }
   }
 }
 
@@ -783,13 +1142,13 @@ async function handleLogin() {
 
   errBox.style.display = 'none';
   if (!username || !password) {
-    errBox.textContent   = 'Preencha usuário e senha.';
+    errBox.textContent   = t('auth.fill_fields');
     errBox.style.display = 'flex';
     return;
   }
 
   btn.disabled  = true;
-  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px"></div> Entrando...';
+  btn.innerHTML = `<div class="spinner" style="width:14px;height:14px"></div> ${t('auth.logging_in')}`;
 
   try {
     const data = await fetch('/api/auth/login', {
@@ -806,6 +1165,7 @@ async function handleLogin() {
     showApp();
     applyRoleUI(currentUser.role);
     updateUserBadge(currentUser);
+    applyTranslations();
 
     try {
       cats = await api.get('/categories');
@@ -830,7 +1190,7 @@ async function handleLogin() {
     errBox.style.display = 'flex';
   } finally {
     btn.disabled  = false;
-    btn.innerHTML = '<i class="ti ti-login" aria-hidden="true"></i> Entrar';
+    btn.innerHTML = `<i class="ti ti-login" aria-hidden="true"></i> <span data-i18n="auth.login">${t('auth.login')}</span>`;
   }
 }
 
@@ -845,21 +1205,17 @@ function userInitials(name) {
 }
 
 function roleBadge(role) {
-  const map = {
-    admin:   '<span class="badge b-coral">Admin</span>',
-    tecnico: '<span class="badge b-amber">Técnico</span>',
-    usuario: '<span class="badge b-gray">Usuário</span>',
-  };
-  return map[role] || `<span class="badge b-gray">${escHtml(role)}</span>`;
+  const cls = { admin: 'b-coral', tecnico: 'b-amber', usuario: 'b-gray' }[role] || 'b-gray';
+  return `<span class="badge ${cls}">${t('role.'+role) || escHtml(role)}</span>`;
 }
 
 async function renderUsers() {
   const el = document.getElementById('app');
   el.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">Usuários</h1>
+      <h1 class="page-title">${t('users.title')}</h1>
       <button class="btn btn-primary btn-sm" onclick="openUserModal()">
-        <i class="ti ti-user-plus" aria-hidden="true"></i> Novo usuário
+        <i class="ti ti-user-plus" aria-hidden="true"></i> ${t('users.new')}
       </button>
     </div>
     <div id="users-body"><div class="loader"><div class="spinner"></div> Carregando...</div></div>`;
@@ -882,11 +1238,11 @@ async function loadUsers() {
           <thead>
             <tr>
               <th></th>
-              <th>Nome</th>
-              <th>Usuário</th>
-              <th>E-mail</th>
-              <th>Perfil</th>
-              <th>Cadastro</th>
+              <th>${t('users.name')}</th>
+              <th>${t('users.username')}</th>
+              <th>${t('users.email')}</th>
+              <th>${t('users.role')}</th>
+              <th>${t('users.created_at')}</th>
               <th></th>
             </tr>
           </thead>
@@ -981,11 +1337,11 @@ async function submitUser() {
     if (editing) {
       await api.patch(`/users/${encodeURIComponent(editingUserId)}`, { name, username, email, role });
       closeUserModal();
-      toast('Usuário atualizado com sucesso!');
+      toast(t('toast.user_updated'));
     } else {
       await api.post('/users', { name, username, email, password, role });
       closeUserModal();
-      toast('Usuário cadastrado com sucesso!');
+      toast(t('toast.user_created'));
     }
     loadUsers();
   } catch (err) {
@@ -1073,13 +1429,60 @@ async function submitChangePassword() {
 }
 
 async function deleteUserById(id) {
-  if (!confirm('Excluir este usuário?')) return;
+  if (!confirm(t('confirm.delete_user'))) return;
   try {
     await api.delete(`/users/${encodeURIComponent(id)}`);
-    toast('Usuário excluído.');
+    toast(t('toast.user_deleted'));
     loadUsers();
   } catch (err) {
     toast(err.message || 'Erro ao excluir.', 'error');
+  }
+}
+
+// ─── CHANGE OWN PASSWORD ─────────────────────────────────────────────────────
+function openChangePasswordModal() {
+  document.getElementById('chgpwd-current').value  = '';
+  document.getElementById('chgpwd-new').value      = '';
+  document.getElementById('chgpwd-confirm').value  = '';
+  document.getElementById('chgpwd-errors').innerHTML = '';
+  document.getElementById('chgpwd-modal').style.display = 'flex';
+  document.getElementById('chgpwd-current').focus();
+}
+
+function closeChangePasswordModal() {
+  document.getElementById('chgpwd-modal').style.display = 'none';
+}
+
+async function submitChangeOwnPassword() {
+  const btn        = document.getElementById('btn-chgpwd-submit');
+  const errBox     = document.getElementById('chgpwd-errors');
+  const current    = document.getElementById('chgpwd-current').value;
+  const newPwd     = document.getElementById('chgpwd-new').value;
+  const confirmPwd = document.getElementById('chgpwd-confirm').value;
+
+  errBox.innerHTML = '';
+  if (!newPwd || newPwd.length < 6) {
+    errBox.innerHTML = `<div class="alert-box a-danger"><i class="ti ti-alert-circle"></i><div>${t('pwd.min_length')}</div></div>`;
+    return;
+  }
+  if (newPwd !== confirmPwd) {
+    errBox.innerHTML = `<div class="alert-box a-danger"><i class="ti ti-alert-circle"></i><div>${t('pwd.no_match')}</div></div>`;
+    return;
+  }
+
+  btn.disabled  = true;
+  btn.innerHTML = `<div class="spinner" style="width:13px;height:13px"></div> ${t('loading')}`;
+
+  try {
+    await api.post('/auth/change-own-password', { currentPassword: current, newPassword: newPwd });
+    closeChangePasswordModal();
+    toast(t('toast.password_changed'));
+  } catch (err) {
+    const msg = err.message?.includes('incorreta') ? t('pwd.wrong') : err.message;
+    errBox.innerHTML = `<div class="alert-box a-danger"><i class="ti ti-alert-circle"></i><div>${msg}</div></div>`;
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = `<i class="ti ti-lock" aria-hidden="true"></i> <span data-i18n="pwd.save">${t('pwd.save')}</span>`;
   }
 }
 
@@ -1102,6 +1505,7 @@ async function init() {
   showApp();
   applyRoleUI(currentUser?.role || 'usuario');
   updateUserBadge(currentUser);
+  applyTranslations();
 
   try {
     cats = await api.get('/categories');
@@ -1199,5 +1603,30 @@ document.getElementById('btn-eye-confirm').addEventListener('click', () => {
   inp.type   = show ? 'text' : 'password';
   btn.innerHTML = `<i class="ti ti-eye${show ? '-off' : ''}" aria-hidden="true"></i>`;
 });
+
+// Language toggle
+document.getElementById('btn-lang-toggle').addEventListener('click', toggleLang);
+document.getElementById('login-lang-btn').addEventListener('click', toggleLang);
+
+// Change own password modal
+document.getElementById('btn-change-password').addEventListener('click', openChangePasswordModal);
+document.getElementById('btn-chgpwd-close').addEventListener('click', closeChangePasswordModal);
+document.getElementById('btn-chgpwd-cancel').addEventListener('click', closeChangePasswordModal);
+document.getElementById('btn-chgpwd-submit').addEventListener('click', submitChangeOwnPassword);
+document.getElementById('chgpwd-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeChangePasswordModal(); });
+document.getElementById('chgpwd-confirm').addEventListener('keydown', e => { if (e.key === 'Enter') submitChangeOwnPassword(); });
+['chgpwd-eye-cur','chgpwd-eye-new','chgpwd-eye-confirm'].forEach(id => {
+  const inputId = { 'chgpwd-eye-cur': 'chgpwd-current', 'chgpwd-eye-new': 'chgpwd-new', 'chgpwd-eye-confirm': 'chgpwd-confirm' }[id];
+  document.getElementById(id).addEventListener('click', () => {
+    const inp = document.getElementById(inputId);
+    const btn = document.getElementById(id);
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.innerHTML = `<i class="ti ti-eye${show ? '-off' : ''}" aria-hidden="true"></i>`;
+  });
+});
+
+// Apply translations on first load (before login)
+applyTranslations();
 
 init();

@@ -12,25 +12,32 @@
 <!-- ═══ LOGIN SCREEN ════════════════════════════════════════════ -->
 <div id="login-screen" style="display:none" aria-label="Tela de login">
   <div class="login-card">
+    <div class="login-lang-bar">
+      <button class="btn btn-sm lang-toggle" id="login-lang-btn" title="Switch language / Alterar idioma">
+        <i class="ti ti-language" aria-hidden="true"></i>
+        <span id="login-lang-label">PT</span>
+      </button>
+    </div>
     <div class="login-brand">
       <div class="login-brand-icon" aria-hidden="true"><i class="ti ti-device-desktop-analytics"></i></div>
-      <div class="login-brand-name">Central de Chamados</div>
-      <div class="login-brand-sub">Suporte TI</div>
+      <div class="login-brand-name" data-i18n="brand.name">Central de Chamados</div>
+      <div class="login-brand-sub" data-i18n="brand.sub">Suporte TI</div>
     </div>
     <div id="login-error" class="alert-box a-danger" style="display:none" role="alert"></div>
     <div class="form-group">
-      <label class="form-label" for="l-username">Usuário</label>
-      <input class="form-input" id="l-username" type="text" placeholder="seu.usuario" autocomplete="username" spellcheck="false">
+      <label class="form-label" for="l-username" data-i18n="auth.username">Usuário</label>
+      <input class="form-input" id="l-username" type="text" placeholder="seu.usuario"
+        autocomplete="username" spellcheck="false" data-i18n-placeholder="auth.username_ph">
     </div>
     <div class="form-group">
-      <label class="form-label" for="l-password">Senha</label>
+      <label class="form-label" for="l-password" data-i18n="auth.password">Senha</label>
       <div class="input-eye">
         <input class="form-input" id="l-password" type="password" placeholder="••••••••" autocomplete="current-password">
         <button type="button" class="eye-btn" id="l-btn-eye" aria-label="Mostrar senha"><i class="ti ti-eye"></i></button>
       </div>
     </div>
     <button class="btn btn-primary login-submit" id="btn-login">
-      <i class="ti ti-login" aria-hidden="true"></i> Entrar
+      <i class="ti ti-login" aria-hidden="true"></i> <span data-i18n="auth.login">Entrar</span>
     </button>
   </div>
 </div>
@@ -43,64 +50,67 @@
   <div class="sidebar-brand">
     <div class="brand-icon" aria-hidden="true"><i class="ti ti-device-desktop-analytics"></i></div>
     <div>
-      <div class="brand-text">Central de Chamados</div>
-      <div class="brand-sub">Suporte TI</div>
+      <div class="brand-text" data-i18n="brand.name">Central de Chamados</div>
+      <div class="brand-sub" data-i18n="brand.sub">Suporte TI</div>
     </div>
   </div>
 
   <div class="nav-section">
-    <div class="nav-label">Menu</div>
+    <div class="nav-label" data-i18n="nav.menu">Menu</div>
     <button class="nav-item active" id="nav-dashboard" aria-current="page">
-      <i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard
+      <i class="ti ti-layout-dashboard" aria-hidden="true"></i> <span data-i18n="nav.dashboard">Dashboard</span>
     </button>
     <button class="nav-item" id="nav-new">
-      <i class="ti ti-circle-plus" aria-hidden="true"></i> Novo chamado
+      <i class="ti ti-circle-plus" aria-hidden="true"></i> <span data-i18n="nav.new_ticket">Novo chamado</span>
     </button>
   </div>
 
   <div class="nav-divider" id="nav-divider-chamados"></div>
 
   <div class="nav-section" id="nav-section-chamados">
-    <div class="nav-label">Chamados</div>
+    <div class="nav-label" data-i18n="nav.tickets">Chamados</div>
     <button class="nav-item" id="nav-history">
-      <i class="ti ti-list-details" aria-hidden="true"></i> Histórico geral
+      <i class="ti ti-list-details" aria-hidden="true"></i> <span data-i18n="nav.history">Histórico geral</span>
     </button>
     <button class="nav-item" id="nav-req">
-      <i class="ti ti-file-invoice" aria-hidden="true"></i> Requisições
+      <i class="ti ti-file-invoice" aria-hidden="true"></i> <span data-i18n="nav.requests">Requisições</span>
     </button>
     <button class="nav-item" id="nav-inc">
-      <i class="ti ti-alert-triangle" aria-hidden="true"></i> Incidentes
+      <i class="ti ti-alert-triangle" aria-hidden="true"></i> <span data-i18n="nav.incidents">Incidentes</span>
     </button>
   </div>
 
   <div class="nav-divider" id="nav-divider-admin"></div>
 
   <div class="nav-section" id="nav-section-admin">
-    <div class="nav-label">Administração</div>
+    <div class="nav-label" data-i18n="nav.admin">Administração</div>
     <button class="nav-item" id="nav-users">
-      <i class="ti ti-users" aria-hidden="true"></i> Usuários
+      <i class="ti ti-users" aria-hidden="true"></i> <span data-i18n="nav.users">Usuários</span>
     </button>
   </div>
 
   <div class="sidebar-footer">
     <div class="sidebar-user" id="sidebar-user">
       <div id="su-avatar" class="su-avatar">?</div>
-      <div>
+      <div class="su-info">
         <div id="su-name" class="su-name">—</div>
         <div id="su-role" class="su-role">—</div>
       </div>
+      <button class="su-lock-btn" id="btn-change-password" aria-label="Alterar senha">
+        <i class="ti ti-lock" aria-hidden="true"></i>
+      </button>
     </div>
     <div class="ticket-counter" id="sidebar-counters" aria-live="polite" aria-label="Contadores de chamados">
       <div class="counter-row">
-        <span class="counter-label">Abertos</span>
+        <span class="counter-label" data-i18n="counter.open">Abertos</span>
         <span class="counter-val" id="cnt-open">—</span>
       </div>
       <div class="counter-row">
-        <span class="counter-label">Em andamento</span>
+        <span class="counter-label" data-i18n="counter.in_analysis">Em análise</span>
         <span class="counter-val" id="cnt-prog">—</span>
       </div>
       <div class="counter-row">
-        <span class="counter-label">Total geral</span>
+        <span class="counter-label" data-i18n="counter.total">Total geral</span>
         <span class="counter-val" id="cnt-total">—</span>
       </div>
     </div>
@@ -112,11 +122,15 @@
   <header class="topbar">
     <span class="topbar-title" id="topbar-title" aria-live="polite">Dashboard</span>
     <div class="topbar-right">
-      <button class="btn btn-primary btn-sm" id="btn-topbar-new">
-        <i class="ti ti-plus" aria-hidden="true"></i> Novo chamado
+      <button class="btn btn-sm lang-toggle" id="btn-lang-toggle" title="Switch language / Alterar idioma">
+        <i class="ti ti-language" aria-hidden="true"></i>
+        <span id="lang-label">PT</span>
       </button>
-      <button class="btn btn-sm" id="btn-logout" title="Sair" aria-label="Sair">
-        <i class="ti ti-logout" aria-hidden="true"></i> Sair
+      <button class="btn btn-primary btn-sm" id="btn-topbar-new">
+        <i class="ti ti-plus" aria-hidden="true"></i> <span data-i18n="btn.new_ticket">Novo chamado</span>
+      </button>
+      <button class="btn btn-sm" id="btn-logout" aria-label="Sair">
+        <i class="ti ti-logout" aria-hidden="true"></i> <span data-i18n="btn.logout">Sair</span>
       </button>
     </div>
   </header>
@@ -214,7 +228,7 @@
   </div>
 </div>
 
-<!-- ═══ CHANGE PASSWORD MODAL ════════════════════════════════════ -->
+<!-- ═══ CHANGE PASSWORD MODAL (forced reset) ════════════════════ -->
 <div class="modal-overlay" id="cp-modal" role="dialog" aria-modal="true" aria-labelledby="cp-modal-title" style="display:none">
   <div class="modal">
     <div class="modal-header" style="border-bottom-color:var(--amber-bg)">
@@ -243,6 +257,50 @@
     <div class="modal-footer">
       <button class="btn btn-primary" id="cp-btn-submit" style="width:100%;justify-content:center;padding:10px">
         <i class="ti ti-check" aria-hidden="true"></i> Definir nova senha
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHANGE OWN PASSWORD MODAL ════════════════════════════════ -->
+<div class="modal-overlay" id="chgpwd-modal" role="dialog" aria-modal="true" aria-labelledby="chgpwd-title" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="chgpwd-title">
+        <i class="ti ti-lock" aria-hidden="true"></i>
+        <span data-i18n="pwd.change_title">Alterar senha</span>
+      </h2>
+      <button class="modal-close" id="btn-chgpwd-close" aria-label="Fechar"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="chgpwd-current" data-i18n="pwd.current">Senha atual *</label>
+        <div class="input-eye">
+          <input class="form-input" id="chgpwd-current" type="password" autocomplete="current-password">
+          <button type="button" class="eye-btn" id="chgpwd-eye-cur" aria-label="Mostrar senha"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="chgpwd-new" data-i18n="pwd.new">Nova senha *</label>
+        <div class="input-eye">
+          <input class="form-input" id="chgpwd-new" type="password" autocomplete="new-password">
+          <button type="button" class="eye-btn" id="chgpwd-eye-new" aria-label="Mostrar nova senha"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label" for="chgpwd-confirm" data-i18n="pwd.confirm">Confirmar nova senha *</label>
+        <div class="input-eye">
+          <input class="form-input" id="chgpwd-confirm" type="password" autocomplete="new-password">
+          <button type="button" class="eye-btn" id="chgpwd-eye-confirm" aria-label="Mostrar confirmação"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div id="chgpwd-errors" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="btn-chgpwd-cancel" data-i18n="btn.cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btn-chgpwd-submit">
+        <i class="ti ti-lock" aria-hidden="true"></i>
+        <span data-i18n="pwd.save">Alterar senha</span>
       </button>
     </div>
   </div>
