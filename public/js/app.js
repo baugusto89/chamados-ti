@@ -25,7 +25,7 @@ const api = {
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let view        = 'dashboard';
 let cats        = { requisicao: [], incidente: [] };
-let charts      = { req: null, inc: null };
+let charts      = { req: null, inc: null, tech: null, sla: null };
 let histF       = { q: '', user: '', type: '', status: '', page: 1 };
 let formState   = { type: 'requisicao', priority: 'media', software: '' };
 let dupTimer      = null;
@@ -72,13 +72,13 @@ const TRANSLATIONS = {
     'status.pendente_terceiros':'Pend. Terceiros','status.fechado':'Fechado',
     'type.requisicao':'Requisição','type.incidente':'Incidente',
     'priority.alta':'Alta','priority.media':'Média','priority.baixa':'Baixa',
-    'role.admin':'Administrador','role.tecnico':'Técnico','role.usuario':'Usuário',
+    'role.admin':'Administrador','role.gerencia':'Gerência','role.tecnico':'Técnico','role.usuario':'Usuário',
     'dash.overview':'Visão geral','dash.updated':'Atualizado agora',
     'dash.total':'Total de chamados','dash.open':'Abertos','dash.in_analysis':'Em análise',
     'dash.pending':'Pendente','dash.pending_third':'Pend. Terceiros','dash.closed':'Fechados',
     'dash.requests':'Requisições','dash.incidents':'Incidentes',
     'dash.req_by_type':'Requisições por tipo','dash.inc_by_type':'Incidentes por tipo',
-    'dash.recent':'Chamados recentes','dash.see_all':'Ver todos',
+    'dash.recent':'Chamados recentes','dash.see_all':'Ver todos','dash.my_assigned':'Meus chamados atribuídos','dash.no_assigned':'Nenhum chamado atribuído a você.','dash.by_technician':'Chamados por técnico','dash.sla_title':'SLA — Nível de Serviço','dash.sla_within':'Dentro do SLA','dash.sla_risk':'Em risco','dash.sla_breach':'Violado','dash.sla_paused':'Pausado','dash.sla_compliance':'de conformidade','dash.sla_active':'chamados ativos','dash.sla_ref':'Referência de metas SLA',
     'ticket.new':'Abrir novo chamado','ticket.type':'Tipo de chamado',
     'ticket.requester':'Solicitante','ticket.priority':'Prioridade',
     'ticket.category':'Categoria','ticket.description':'Descrição detalhada',
@@ -139,13 +139,13 @@ const TRANSLATIONS = {
     'status.pendente_terceiros':'Pend. 3rd party','status.fechado':'Closed',
     'type.requisicao':'Request','type.incidente':'Incident',
     'priority.alta':'High','priority.media':'Medium','priority.baixa':'Low',
-    'role.admin':'Administrator','role.tecnico':'Technician','role.usuario':'User',
+    'role.admin':'Administrator','role.gerencia':'Management','role.tecnico':'Technician','role.usuario':'User',
     'dash.overview':'Overview','dash.updated':'Just updated',
     'dash.total':'Total tickets','dash.open':'Open','dash.in_analysis':'In analysis',
     'dash.pending':'Pending','dash.pending_third':'Pend. 3rd party','dash.closed':'Closed',
     'dash.requests':'Requests','dash.incidents':'Incidents',
     'dash.req_by_type':'Requests by type','dash.inc_by_type':'Incidents by type',
-    'dash.recent':'Recent tickets','dash.see_all':'View all',
+    'dash.recent':'Recent tickets','dash.see_all':'View all','dash.my_assigned':'My assigned tickets','dash.no_assigned':'No tickets assigned to you.','dash.by_technician':'Tickets by technician','dash.sla_title':'SLA — Service Level','dash.sla_within':'Within SLA','dash.sla_risk':'At risk','dash.sla_breach':'Breached','dash.sla_paused':'Paused','dash.sla_compliance':'compliance','dash.sla_active':'active tickets','dash.sla_ref':'SLA target reference',
     'ticket.new':'Open new ticket','ticket.type':'Ticket type',
     'ticket.requester':'Requester','ticket.priority':'Priority',
     'ticket.category':'Category','ticket.description':'Detailed description',
@@ -271,7 +271,8 @@ function updateSidebar(stats) {
 }
 
 // ─── ROLE UI ──────────────────────────────────────────────────────────────────
-const ROLE_LABELS = { admin: 'role.admin', tecnico: 'role.tecnico', usuario: 'role.usuario' };
+const ROLE_LABELS = { admin: 'role.admin', gerencia: 'role.gerencia', tecnico: 'role.tecnico', usuario: 'role.usuario' };
+const ADMIN_ROLES = new Set(['admin', 'gerencia']);
 
 function applyRoleUI(role) {
   const chamadoSection = document.getElementById('nav-section-chamados');
@@ -295,6 +296,7 @@ function applyRoleUI(role) {
     show(counters);
     if (dashBtn) dashBtn.innerHTML = `<i class="ti ti-layout-dashboard" aria-hidden="true"></i> <span data-i18n="nav.dashboard">${t('nav.dashboard')}</span>`;
   } else {
+    // admin e gerencia
     show(chamadoSection); show(chamadoDivider);
     show(adminSection);   show(adminDivider);
     show(counters);
@@ -317,11 +319,13 @@ function go(v, typeFilter) {
   destroyCharts();
 
   // Role guards
-  if (currentUser?.role === 'usuario') {
+  const role = currentUser?.role;
+  if (role === 'usuario') {
     if (v === 'dashboard' || v === 'users') v = 'mytickets';
-  } else if (currentUser?.role === 'tecnico') {
+  } else if (role === 'tecnico') {
     if (v === 'users') v = 'dashboard';
   }
+  // admin e gerencia: sem restrições
 
   view = v;
   if (v === 'history' && typeFilter) histF.type = typeFilter;
@@ -387,55 +391,93 @@ async function renderDashboard() {
         <div id="inc-chart-area"><div class="loader"><div class="spinner"></div></div></div>
       </div>
     </div>
+    <div class="dash-bottom-row">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="ti ti-clock-check" aria-hidden="true"></i> ${t('dash.sla_title')}</div>
+          <span class="card-badge b-green" id="sla-badge">—</span>
+        </div>
+        <div id="sla-chart-area"><div class="loader"><div class="spinner"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="ti ti-user-check" aria-hidden="true"></i> ${t('dash.by_technician')}</div>
+          <span class="card-badge b-gray" id="tech-count">—</span>
+        </div>
+        <div id="tech-chart-area"><div class="loader"><div class="spinner"></div></div></div>
+      </div>
+    </div>
     <div class="recent-card">
       <div class="recent-head">
-        <span style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:600">${t('dash.recent')}</span>
-        <button class="btn btn-sm" onclick="go('history')">${t('dash.see_all')} <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+        <span style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:600" id="recent-title"></span>
+        <button class="btn btn-sm" id="recent-action"></button>
       </div>
       <div id="recent-list"><div class="loader"><div class="spinner"></div></div></div>
     </div>`;
 
+  const isTecnico = currentUser?.role === 'tecnico';
+  const assignedQuery = isTecnico
+    ? `/tickets?assigned_to=${encodeURIComponent(currentUser.id)}&limit=100`
+    : '/tickets?limit=5';
+
   try {
     const [statsData, ticketsData] = await Promise.all([
       api.get('/stats'),
-      api.get('/tickets?limit=5'),
+      api.get(assignedQuery),
     ]);
 
     const s = statsData.overview;
     updateSidebar(s);
     document.getElementById('dash-ts').textContent = t('dash.updated');
 
+    // Recent / Assigned section header
+    const titleEl  = document.getElementById('recent-title');
+    const actionEl = document.getElementById('recent-action');
+    if (isTecnico) {
+      if (titleEl)  titleEl.textContent = t('dash.my_assigned');
+      if (actionEl) {
+        actionEl.innerHTML = `${t('dash.see_all')} <i class="ti ti-arrow-right" aria-hidden="true"></i>`;
+        actionEl.onclick = () => openStatusDrawer('', '');
+      }
+    } else {
+      if (titleEl)  titleEl.textContent = t('dash.recent');
+      if (actionEl) {
+        actionEl.innerHTML = `${t('dash.see_all')} <i class="ti ti-arrow-right" aria-hidden="true"></i>`;
+        actionEl.onclick = () => go('history');
+      }
+    }
+
     // Metrics
     document.getElementById('metrics').innerHTML = `
-      <div class="metric m-neutral">
+      <div class="metric m-neutral metric-clickable" onclick="openStatusDrawer('','')">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-ticket" aria-hidden="true"></i></div></div>
         <div class="metric-num">${s.total}</div><div class="metric-lbl">${t('dash.total')}</div>
       </div>
-      <div class="metric m-blue">
+      <div class="metric m-blue metric-clickable" onclick="openStatusDrawer('aberto','')">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-circle-dot" aria-hidden="true"></i></div></div>
         <div class="metric-num">${s.abertos}</div><div class="metric-lbl">${t('dash.open')}</div>
       </div>
-      <div class="metric m-amber">
+      <div class="metric m-amber metric-clickable" onclick="openStatusDrawer('em_analise','')">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-loader-2" aria-hidden="true"></i></div></div>
         <div class="metric-num">${s.em_analise}</div><div class="metric-lbl">${t('dash.in_analysis')}</div>
       </div>
-      <div class="metric m-orange">
+      <div class="metric m-orange metric-clickable" onclick="openStatusDrawer('pendente','')">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-clock-pause" aria-hidden="true"></i></div></div>
         <div class="metric-num">${s.pendente}</div><div class="metric-lbl">${t('dash.pending')}</div>
       </div>
-      <div class="metric m-purple">
+      <div class="metric m-purple metric-clickable" onclick="openStatusDrawer('pendente_terceiros','')">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-users" aria-hidden="true"></i></div></div>
         <div class="metric-num">${s.pendente_terceiros}</div><div class="metric-lbl">${t('dash.pending_third')}</div>
       </div>
-      <div class="metric m-green">
+      <div class="metric m-green metric-clickable" onclick="openStatusDrawer('fechado','')">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-circle-check" aria-hidden="true"></i></div></div>
         <div class="metric-num">${s.fechados}</div><div class="metric-lbl">${t('dash.closed')}</div>
       </div>
-      <div class="metric m-blue">
+      <div class="metric m-blue metric-clickable" onclick="openStatusDrawer('','requisicao')">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-file-invoice" aria-hidden="true"></i></div></div>
         <div class="metric-num">${s.requisicoes}</div><div class="metric-lbl">${t('dash.requests')}</div>
       </div>
-      <div class="metric m-coral">
+      <div class="metric m-coral metric-clickable" onclick="openStatusDrawer('','incidente')">
         <div class="metric-top"><div class="metric-icon"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div></div>
         <div class="metric-num">${s.incidentes}</div><div class="metric-lbl">${t('dash.incidents')}</div>
       </div>`;
@@ -449,11 +491,17 @@ async function renderDashboard() {
       'inc-chart-area', 'inc-count', 'bar',
       ['#DC4B1E','#B83D17','#EA6B3E','#F59063','#FBB597','#922910','#FDCFB8','#FEE4D8']);
 
-    // Recent
+    buildSlaChart(statsData.sla);
+    buildTechPieChart(statsData.byTechnician);
+
+    // Recent / Assigned list
     const rows = ticketsData.tickets;
+    const emptyMsg = isTecnico
+      ? `<div class="empty"><i class="ti ti-inbox" aria-hidden="true"></i><p>${t('dash.no_assigned')}</p></div>`
+      : `<div class="empty"><i class="ti ti-inbox" aria-hidden="true"></i><p>Nenhum chamado. <button class="empty-link" onclick="go('new')">Abrir primeiro →</button></p></div>`;
     document.getElementById('recent-list').innerHTML = rows.length
       ? `<div class="t-list">${rows.map(tk => ticketRow(tk, false)).join('')}</div>`
-      : `<div class="empty"><i class="ti ti-inbox" aria-hidden="true"></i><p>Nenhum chamado. <button class="empty-link" onclick="go('new')">Abrir primeiro →</button></p></div>`;
+      : emptyMsg;
 
   } catch (err) {
     console.error(err);
@@ -517,6 +565,233 @@ function buildChart(key, data, areaId, countId, type, palette) {
       } : {}),
     },
   });
+}
+
+function buildSlaChart(sla) {
+  const area    = document.getElementById('sla-chart-area');
+  const badgeEl = document.getElementById('sla-badge');
+  if (!area) return;
+
+  if (!sla) { area.innerHTML = ''; return; }
+
+  const pct   = sla.compliance;
+  const color = pct >= 90 ? '#16A34A' : pct >= 70 ? '#D97706' : '#DC2626';
+
+  if (badgeEl) {
+    badgeEl.textContent = `${pct}%`;
+    badgeEl.className   = `card-badge ${pct >= 90 ? 'b-green' : pct >= 70 ? 'b-amber' : 'b-coral'}`;
+  }
+
+  area.innerHTML = `
+    <div class="sla-wrap">
+      <div class="sla-donut-wrap">
+        <canvas id="sla-chart" width="160" height="160"></canvas>
+        <div class="sla-center">
+          <div class="sla-pct" style="color:${color}">${pct}%</div>
+          <div class="sla-pct-lbl">${t('dash.sla_compliance')}</div>
+        </div>
+      </div>
+      <div class="sla-right">
+        <div class="sla-metrics">
+          <div class="sla-metric">
+            <span class="sla-dot" style="background:#16A34A"></span>
+            <span class="sla-metric-lbl">${t('dash.sla_within')}</span>
+            <span class="sla-metric-val" style="color:#16A34A">${sla.dentro}</span>
+          </div>
+          <div class="sla-metric">
+            <span class="sla-dot" style="background:#D97706"></span>
+            <span class="sla-metric-lbl">${t('dash.sla_risk')}</span>
+            <span class="sla-metric-val" style="color:#D97706">${sla.risco}</span>
+          </div>
+          <div class="sla-metric">
+            <span class="sla-dot" style="background:#DC2626"></span>
+            <span class="sla-metric-lbl">${t('dash.sla_breach')}</span>
+            <span class="sla-metric-val" style="color:#DC2626">${sla.violado}</span>
+          </div>
+          <div class="sla-metric">
+            <span class="sla-dot" style="background:var(--text-3)"></span>
+            <span class="sla-metric-lbl">${t('dash.sla_paused')}</span>
+            <span class="sla-metric-val" style="color:var(--text-2)">${sla.pausado}</span>
+          </div>
+        </div>
+        <div class="sla-ref">
+          <div class="sla-ref-title">${t('dash.sla_ref')}</div>
+          <table class="sla-table">
+            <tr><td><span class="badge b-coral" style="font-size:10px">Incidente Alta</span></td><td>4 h</td></tr>
+            <tr><td><span class="badge b-amber" style="font-size:10px">Incidente Média</span></td><td>8 h</td></tr>
+            <tr><td><span class="badge b-gray"  style="font-size:10px">Incidente Baixa</span></td><td>24 h</td></tr>
+            <tr><td><span class="badge b-blue"  style="font-size:10px">Requisição</span></td><td>72 h</td></tr>
+          </table>
+          <p class="sla-note"><i class="ti ti-pause" aria-hidden="true"></i> SLA pausado em Pendente / Pend. Terceiros</p>
+        </div>
+      </div>
+    </div>`;
+
+  const canvas = document.getElementById('sla-chart');
+  if (!canvas) return;
+
+  const hasData = sla.active > 0;
+  charts.sla = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: [t('dash.sla_within'), t('dash.sla_risk'), t('dash.sla_breach')],
+      datasets: [{
+        data: hasData ? [sla.dentro, sla.risco, sla.violado] : [1],
+        backgroundColor: hasData ? ['#16A34A', '#D97706', '#DC2626'] : ['#e5e7eb'],
+        borderWidth: 0,
+        cutout: '72%',
+        hoverOffset: 4,
+      }],
+    },
+    options: {
+      responsive: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: hasData,
+          callbacks: {
+            label: c => ` ${c.raw} chamado(s)`,
+          },
+        },
+      },
+    },
+  });
+}
+
+function buildTechPieChart(data) {
+  const area    = document.getElementById('tech-chart-area');
+  const countEl = document.getElementById('tech-count');
+  if (!area) return;
+
+  if (!data || !data.length) {
+    if (countEl) countEl.textContent = '0';
+    area.innerHTML = `<div class="empty" style="padding:30px"><i class="ti ti-chart-donut" aria-hidden="true"></i><p>${t('empty.no_data')}</p></div>`;
+    return;
+  }
+
+  const total = data.reduce((s, r) => s + r.total, 0);
+  if (countEl) countEl.textContent = `${total} total`;
+
+  const labels  = data.map(r => r.name);
+  const values  = data.map(r => r.total);
+  const palette = [
+    '#2563EB','#DC4B1E','#10B981','#F59E0B','#8B5CF6',
+    '#EC4899','#06B6D4','#84CC16','#F97316','#6366F1',
+    '#14B8A6','#EF4444','#A855F7','#EAB308','#3B82F6',
+  ];
+  const colors = labels.map((_, i) => palette[i % palette.length]);
+
+  area.innerHTML = `<div class="tech-pie-wrap"><div class="tech-pie-canvas-wrap"><canvas id="tech-chart" width="260" height="230" aria-label="Gráfico 3D por técnico"></canvas></div><div class="tech-pie-legend" id="tech-legend"></div></div>`;
+
+  const canvas = document.getElementById('tech-chart');
+  if (!canvas) return;
+
+  charts.tech = null;
+  draw3DPie(canvas, values, colors, total);
+
+  const legend = document.getElementById('tech-legend');
+  if (legend) {
+    legend.innerHTML = data.map((r, i) => `
+      <div class="tech-legend-item">
+        <span class="tech-legend-dot" style="background:${colors[i]}"></span>
+        <span class="tech-legend-name">${escHtml(r.name)}</span>
+        <span class="tech-legend-count">${r.total} <span style="font-weight:400;color:var(--text-3)">(${Math.round(r.total/total*100)}%)</span></span>
+      </div>`).join('');
+  }
+}
+
+function draw3DPie(canvas, values, colors, total) {
+  const ctx   = canvas.getContext('2d');
+  const W     = canvas.width;
+  const H     = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const cx    = W / 2;
+  const cy    = H * 0.42;
+  const rx    = W * 0.38;
+  const ry    = rx * 0.42;   // squash for perspective
+  const depth = 26;           // 3D extrusion height
+
+  // Build slices
+  const slices = [];
+  let angle = -Math.PI / 2;
+  for (let i = 0; i < values.length; i++) {
+    const sweep = (values[i] / total) * 2 * Math.PI;
+    slices.push({ start: angle, end: angle + sweep, color: colors[i] });
+    angle += sweep;
+  }
+
+  // Darken hex color for side faces
+  function darken(hex, f = 0.52) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return `rgb(${Math.round(r*f)},${Math.round(g*f)},${Math.round(b*f)})`;
+  }
+
+  // Painter's algorithm: sort so back-facing slices render before front-facing
+  const sorted = [...slices].sort((a, b) =>
+    Math.sin((a.start + a.end) / 2) - Math.sin((b.start + b.end) / 2)
+  );
+
+  // Pass 1 — draw outer rim (side faces)
+  for (const s of sorted) {
+    ctx.beginPath();
+    ctx.moveTo(cx + rx * Math.cos(s.start), cy + ry * Math.sin(s.start));
+    ctx.ellipse(cx, cy, rx, ry, 0, s.start, s.end);
+    ctx.lineTo(cx + rx * Math.cos(s.end), cy + depth + ry * Math.sin(s.end));
+    ctx.ellipse(cx, cy + depth, rx, ry, 0, s.end, s.start, true);
+    ctx.closePath();
+    ctx.fillStyle = darken(s.color);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+
+  // Pass 2 — draw radial side edges (left/right faces of each slice)
+  for (const s of sorted) {
+    for (const a of [s.start, s.end]) {
+      const x = cx + rx * Math.cos(a);
+      const y = cy + ry * Math.sin(a);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(x, y);
+      ctx.lineTo(x, y + depth);
+      ctx.lineTo(cx, cy + depth);
+      ctx.closePath();
+      ctx.fillStyle = darken(s.color, 0.45);
+      ctx.fill();
+    }
+  }
+
+  // Pass 3 — draw top faces
+  for (const s of sorted) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.ellipse(cx, cy, rx, ry, 0, s.start, s.end);
+    ctx.closePath();
+
+    // Radial gradient for slight shine
+    const midA  = (s.start + s.end) / 2;
+    const gx    = cx + rx * 0.35 * Math.cos(midA);
+    const gy    = cy + ry * 0.35 * Math.sin(midA);
+    const grad  = ctx.createRadialGradient(gx, gy, 0, cx, cy, rx);
+    grad.addColorStop(0, lighten(s.color));
+    grad.addColorStop(1, s.color);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+
+  function lighten(hex, f = 1.35) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    const r = Math.min(255, Math.round(((n >> 16) & 255) * f));
+    const g = Math.min(255, Math.round(((n >> 8)  & 255) * f));
+    const b = Math.min(255, Math.round(( n        & 255) * f));
+    return `rgb(${r},${g},${b})`;
+  }
 }
 
 // ─── TICKET ROW ───────────────────────────────────────────────────────────────
@@ -591,6 +866,7 @@ function escHtml(s) {
 
 function openTicket(id) {
   currentTicketId = id;
+  closeStatusDrawer();
   go('ticket');
 }
 
@@ -658,6 +934,7 @@ async function renderHistory() {
 }
 
 let histDebounce = null;
+let sdState      = { status: '', type: '', q: '', assignedTo: '', timer: null };
 async function loadHistory() {
   clearTimeout(histDebounce);
   histDebounce = setTimeout(_doLoadHistory, 300);
@@ -680,20 +957,8 @@ async function _doLoadHistory() {
     const data = await api.get(`/tickets?${params}`);
     const { tickets, pagination } = data;
 
-    const enriched = await Promise.all(
-      tickets.map(async t => {
-        try {
-          const dupParams = `/check-duplicate?user=${encodeURIComponent(t.user_name)}&type=${t.type}&category=${encodeURIComponent(t.category)}`
-            + (t.subcategory ? `&subcategory=${encodeURIComponent(t.subcategory)}` : '');
-          const dup = await api.get(dupParams);
-          if (dup.duplicate && dup.count > 0) t._dup = dup;
-        } catch (_) {}
-        return t;
-      })
-    );
-
-    el.innerHTML = enriched.length
-      ? `<div class="t-list">${enriched.map(tk => ticketRow(tk, true)).join('')}</div>`
+    el.innerHTML = tickets.length
+      ? `<div class="t-list">${tickets.map(tk => ticketRow(tk, false)).join('')}</div>`
       : `<div class="empty"><i class="ti ti-inbox" aria-hidden="true"></i><p>Nenhum chamado encontrado</p></div>`;
 
     const pg = document.getElementById('pagination');
@@ -745,27 +1010,27 @@ async function renderMyTickets() {
       return;
     }
 
-    body.innerHTML = `<div class="my-tickets-grid">${tickets.map(t => {
-      const s = STATUS_MAP[t.status] || STATUS_MAP.aberto;
-      const typeCls = t.type === 'requisicao' ? 'b-blue' : 'b-coral';
-      const typeLabel = t.type === 'requisicao' ? 'Requisição' : 'Incidente';
+    body.innerHTML = `<div class="my-tickets-grid">${tickets.map(tk => {
+      const s = STATUS_MAP[tk.status] || STATUS_MAP.aberto;
+      const typeCls = tk.type === 'requisicao' ? 'b-blue' : 'b-coral';
+      const typeLabel = tk.type === 'requisicao' ? t('type.requisicao') : t('type.incidente');
       return `
-      <div class="my-ticket-card myt-${t.status}">
+      <div class="my-ticket-card myt-${tk.status}">
         <div class="myt-head">
-          <span class="myt-id">${escHtml(t.id)}</span>
+          <span class="myt-id">${escHtml(tk.id)}</span>
           <span class="badge ${typeCls}">${typeLabel}</span>
         </div>
         <div>
-          <div class="myt-cat">${escHtml(t.category)}</div>
-          ${t.subcategory ? `<div class="myt-subcat">${escHtml(t.subcategory)}</div>` : ''}
+          <div class="myt-cat">${escHtml(tk.category)}</div>
+          ${tk.subcategory ? `<div class="myt-subcat">${escHtml(tk.subcategory)}</div>` : ''}
         </div>
-        <div class="myt-desc">${escHtml(t.description)}</div>
+        <div class="myt-desc">${escHtml(tk.description)}</div>
         <div class="myt-foot">
-          <span class="badge ${s.cls}"><i class="ti ${s.icon}"></i>${s.label}</span>
-          <span class="myt-time"><i class="ti ti-clock"></i>${fmtDate(t.created_at)}</span>
+          <span class="badge ${s.cls}"><i class="ti ${s.icon}"></i>${t('status.'+tk.status)||s.label}</span>
+          <span class="myt-time"><i class="ti ti-clock"></i>${fmtDate(tk.created_at)}</span>
         </div>
         <div style="margin-top:8px">
-          <button class="view-btn" onclick="openTicket('${escHtml(t.id.replace(/'/g,''))}')" style="width:100%;justify-content:center">
+          <button class="view-btn" onclick="openTicket('${escHtml(tk.id.replace(/'/g,''))}')" style="width:100%;justify-content:center">
             <i class="ti ti-eye" aria-hidden="true"></i> ${t('btn.view_details')}
           </button>
         </div>
@@ -794,7 +1059,7 @@ async function renderTicketDetail(id) {
     <div id="td-body"><div class="loader"><div class="spinner"></div> Carregando...</div></div>`;
 
   try {
-    const isEditor = currentUser?.role === 'admin' || currentUser?.role === 'tecnico';
+    const isEditor = currentUser?.role !== 'usuario';
     const [ticket, technicians] = await Promise.all([
       api.get(`/tickets/${encodeURIComponent(id)}`),
       isEditor ? api.get('/technicians') : Promise.resolve([]),
@@ -1059,28 +1324,8 @@ function scheduleDupCheck() {
 }
 
 async function checkDuplicate() {
-  const user = document.getElementById('fn')?.value?.trim();
-  const cat  = document.getElementById('fc')?.value;
   const area = document.getElementById('dup-area');
-  if (!area) return;
-  if (!user || !cat) { area.innerHTML = ''; return; }
-
-  const sub = cat === 'Acesso a Software' ? formState.software : '';
-  if (cat === 'Acesso a Software' && !sub) { area.innerHTML = ''; return; }
-
-  try {
-    const params = `/check-duplicate?user=${encodeURIComponent(user)}&type=${formState.type}&category=${encodeURIComponent(cat)}`
-      + (sub ? `&subcategory=${encodeURIComponent(sub)}` : '');
-    const res = await api.get(params);
-    if (!res.duplicate) { area.innerHTML = ''; return; }
-    const cls  = res.kind === 'warning' ? 'a-warn' : 'a-info';
-    const icon = res.kind === 'warning' ? 'ti-alert-triangle' : 'ti-info-circle';
-    area.innerHTML = `
-      <div class="alert-box ${cls}">
-        <i class="ti ${icon}" aria-hidden="true"></i>
-        <div>${escHtml(res.message)}</div>
-      </div>`;
-  } catch (_) {}
+  if (area) area.innerHTML = '';
 }
 
 async function submitTicket() {
@@ -1624,6 +1869,104 @@ document.getElementById('chgpwd-confirm').addEventListener('keydown', e => { if 
     inp.type = show ? 'text' : 'password';
     btn.innerHTML = `<i class="ti ti-eye${show ? '-off' : ''}" aria-hidden="true"></i>`;
   });
+});
+
+// ─── STATUS DRAWER ───────────────────────────────────────────────────────────
+async function openStatusDrawer(status, type) {
+  sdState.status     = status;
+  sdState.type       = type;
+  sdState.q          = '';
+  sdState.assignedTo = '';
+  clearTimeout(sdState.timer);
+
+  const searchEl = document.getElementById('sd-search');
+  const typeEl   = document.getElementById('sd-type-filter');
+  const techEl   = document.getElementById('sd-tech-filter');
+  if (searchEl) { searchEl.value = ''; }
+  if (typeEl)   { typeEl.value = type; typeEl.disabled = !!type; }
+  if (techEl)   { techEl.value = ''; }
+
+  // Populate technician list (only for admin/tecnico)
+  if (techEl && currentUser?.role !== 'usuario') {
+    try {
+      const techs = await api.get('/technicians');
+      techEl.innerHTML = `<option value="">Todos os técnicos</option>`
+        + techs.map(tc => `<option value="${tc.id}">${escHtml(tc.name)}</option>`).join('');
+    } catch (_) {
+      techEl.innerHTML = `<option value="">Todos os técnicos</option>`;
+    }
+    techEl.style.display = '';
+  } else if (techEl) {
+    techEl.style.display = 'none';
+  }
+
+  const iconEl  = document.getElementById('sd-icon');
+  const titleEl = document.getElementById('sd-title');
+  const badgeEl = document.getElementById('sd-badge');
+  if (badgeEl) badgeEl.textContent = '';
+
+  if (status) {
+    const sm = STATUS_MAP[status];
+    if (iconEl)  iconEl.innerHTML  = `<span class="badge ${sm.cls}" style="font-size:13px"><i class="ti ${sm.icon}"></i></span>`;
+    if (titleEl) titleEl.textContent = t('status.' + status) || sm.label;
+  } else if (type) {
+    const isReq = type === 'requisicao';
+    if (iconEl)  iconEl.innerHTML  = `<span class="badge ${isReq ? 'b-blue' : 'b-coral'}" style="font-size:13px"><i class="ti ${isReq ? 'ti-file-invoice' : 'ti-alert-triangle'}"></i></span>`;
+    if (titleEl) titleEl.textContent = t('type.' + type);
+  } else {
+    if (iconEl)  iconEl.innerHTML  = `<span class="badge b-gray" style="font-size:13px"><i class="ti ti-ticket"></i></span>`;
+    if (titleEl) titleEl.textContent = t('dash.total');
+  }
+
+  document.getElementById('sd-overlay').style.display = 'flex';
+  loadStatusDrawer();
+}
+
+function closeStatusDrawer() {
+  document.getElementById('sd-overlay').style.display = 'none';
+}
+
+async function loadStatusDrawer() {
+  const body    = document.getElementById('sd-body');
+  const badgeEl = document.getElementById('sd-badge');
+  if (!body) return;
+  body.innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
+
+  const params = new URLSearchParams({ limit: 100 });
+  if (sdState.status)     params.set('status', sdState.status);
+  if (sdState.type)       params.set('type', sdState.type);
+  if (sdState.q)          params.set('q', sdState.q);
+  if (sdState.assignedTo) params.set('assigned_to', sdState.assignedTo);
+
+  try {
+    const data    = await api.get(`/tickets?${params}`);
+    const tickets = data.tickets;
+    const total   = data.pagination?.total ?? tickets.length;
+    if (badgeEl) badgeEl.textContent = total;
+    body.innerHTML = tickets.length
+      ? `<div class="t-list">${tickets.map(tk => ticketRow(tk, false)).join('')}</div>`
+      : `<div class="empty"><i class="ti ti-inbox" aria-hidden="true"></i><p>${t('empty.no_tickets')}</p></div>`;
+  } catch (err) {
+    body.innerHTML = `<div class="empty"><i class="ti ti-alert-circle" aria-hidden="true"></i><p>Erro ao carregar chamados.</p></div>`;
+  }
+}
+
+document.getElementById('btn-sd-close').addEventListener('click', closeStatusDrawer);
+document.getElementById('sd-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeStatusDrawer(); });
+document.getElementById('sd-search').addEventListener('input', e => {
+  sdState.q = e.target.value.trim();
+  clearTimeout(sdState.timer);
+  sdState.timer = setTimeout(loadStatusDrawer, 400);
+});
+document.getElementById('sd-type-filter').addEventListener('change', e => {
+  if (!document.getElementById('sd-type-filter').disabled) {
+    sdState.type = e.target.value;
+    loadStatusDrawer();
+  }
+});
+document.getElementById('sd-tech-filter').addEventListener('change', e => {
+  sdState.assignedTo = e.target.value;
+  loadStatusDrawer();
 });
 
 // Apply translations on first load (before login)

@@ -169,6 +169,7 @@
         <select class="form-select" id="u-role">
           <option value="usuario">Usuário Comum</option>
           <option value="tecnico">Técnico</option>
+          <option value="gerencia">Gerência</option>
           <option value="admin">Administrador</option>
         </select>
       </div>
@@ -302,6 +303,37 @@
         <i class="ti ti-lock" aria-hidden="true"></i>
         <span data-i18n="pwd.save">Alterar senha</span>
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STATUS DRAWER ════════════════════════════════════════════ -->
+<div id="sd-overlay" class="sd-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="sd-title">
+  <div class="sd-panel">
+    <div class="sd-header">
+      <div class="sd-title-row">
+        <span id="sd-icon"></span>
+        <h2 class="sd-title" id="sd-title">Chamados</h2>
+        <span class="sd-badge" id="sd-badge"></span>
+      </div>
+      <button class="modal-close" id="btn-sd-close" aria-label="Fechar"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="sd-filters">
+      <div class="sd-search-wrap">
+        <i class="ti ti-search sd-search-icon" aria-hidden="true"></i>
+        <input class="form-input sd-search-input" id="sd-search" type="text" placeholder="Buscar chamado, usuário...">
+      </div>
+      <select class="form-select sd-type-select" id="sd-type-filter">
+        <option value="">Todos os tipos</option>
+        <option value="requisicao">Requisição</option>
+        <option value="incidente">Incidente</option>
+      </select>
+      <select class="form-select sd-type-select" id="sd-tech-filter">
+        <option value="">Todos os técnicos</option>
+      </select>
+    </div>
+    <div class="sd-body" id="sd-body">
+      <div class="loader"><div class="spinner"></div></div>
     </div>
   </div>
 </div>

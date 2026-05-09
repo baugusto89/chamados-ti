@@ -124,12 +124,14 @@ O sistema possui três perfis de usuário com permissões distintas:
 - Acessa o dashboard com métricas e gráficos
 - Altera o status de qualquer chamado
 - Promove ou rebaixa perfis de outros usuários
+- Altera a própria senha pelo menu lateral
 
 ### Técnico (`tecnico`)
 - Visualiza e gerencia **todos** os chamados
 - Acessa o dashboard, histórico, requisições e incidentes
-- Altera o status dos chamados
+- Entra no detalhe de cada chamado para registrar procedimentos técnicos, alterar status e reatribuir para outro técnico
 - **Não** acessa o menu de gerenciamento de usuários
+- Altera a própria senha pelo menu lateral
 
 ### Usuário Comum (`usuario`)
 - Visualiza **somente seus próprios chamados** em formato de cards
@@ -137,6 +139,7 @@ O sistema possui três perfis de usuário com permissões distintas:
 - Filtra seus chamados por Requisições ou Incidentes
 - **Não** altera status de chamados
 - **Não** acessa o histórico geral nem o painel de usuários
+- Altera a própria senha pelo menu lateral
 
 ---
 
@@ -150,9 +153,33 @@ O sistema possui três perfis de usuário com permissões distintas:
 - Sessões expiradas são limpas automaticamente a cada hora no servidor
 - Logout invalida o token imediatamente no servidor
 
+### Alterar Senha (todos os perfis)
+
+Qualquer usuário autenticado pode alterar sua própria senha pelo botão de cadeado no rodapé da barra lateral:
+
+```
+Usuário clica no ícone de cadeado (barra lateral)
+    │
+    ▼
+Modal solicita: senha atual, nova senha, confirmação
+    │
+    ▼
+Servidor verifica a senha atual via scryptSync
+Salva nova senha com hash + salt
+    │
+    ▼
+Modal fecha e exibe confirmação
+```
+
+> Diferente do reset de senha feito pelo admin, este fluxo **exige a senha atual** e não requer intervenção de administrador.
+
+### Seletor de Idioma
+
+A interface suporta **Português (PT)** e **Inglês (EN)**. O idioma pode ser alternado pelo botão na barra superior ou na tela de login. A preferência é salva no `localStorage` e mantida entre sessões.
+
 ### Dashboard (admin / técnico)
 
-- Contadores: total de chamados, abertos, em andamento, fechados, requisições e incidentes
+- Contadores: total de chamados, abertos, em análise, pendente, pendente de terceiros, fechados, requisições e incidentes
 - Gráficos de barras por categoria (Requisições e Incidentes), via Chart.js
 - Lista dos 5 chamados mais recentes
 - Contadores na barra lateral atualizados em tempo real
@@ -169,19 +196,29 @@ O sistema possui três perfis de usuário com permissões distintas:
 | Status | Descrição |
 |--------|-----------|
 | `Aberto` | Recém-criado, aguardando atendimento |
-| `Em andamento` | Em tratamento pela equipe de TI |
+| `Em análise` | Em tratamento pela equipe de TI |
+| `Pendente` | Aguardando ação do solicitante |
+| `Pendente de Terceiros` | Aguardando fornecedor ou equipe externa |
 | `Fechado` | Resolvido |
+
+#### Atribuição automática
+Ao criar um chamado, o sistema atribui automaticamente um técnico cadastrado de forma aleatória. A atribuição pode ser alterada posteriormente pelo técnico ou administrador na tela de detalhe do chamado.
 
 #### Prioridade (somente Incidentes)
 `Alta` · `Média` · `Baixa` — indicadas por borda colorida na lista
 
-#### Detecção de duplicatas
-Ao preencher um novo chamado, o sistema verifica em tempo real se o usuário já possui chamados abertos para a mesma **categoria + subcategoria**, exibindo um aviso antes do envio.
+### Detalhe do Chamado (admin / técnico)
+
+Ao clicar em "Ver detalhes" no histórico, o técnico ou administrador acessa a tela de detalhe do chamado com:
+
+- Informações completas: status, tipo, prioridade, solicitante, categoria, técnico atribuído, datas
+- **Log de procedimentos técnicos**: histórico cronológico de anotações registradas pelos técnicos (técnico responsável + data/hora de cada entrada)
+- **Formulário de atualização**: alterar status, reatribuir para outro técnico e registrar novo procedimento — tudo em uma única ação
 
 ### Meus Chamados (usuário comum)
 
 - Grade de cards com todos os chamados do usuário
-- Borda colorida por status: azul (aberto), âmbar (em andamento), verde (fechado)
+- Borda colorida por status: azul (aberto), âmbar (em análise / pendente), roxo (pendente de terceiros), verde (fechado)
 - Botão de "Novo chamado" com nome do usuário preenchido automaticamente e bloqueado
 - Filtros por Requisições e Incidentes no menu lateral
 
@@ -288,6 +325,7 @@ A navegação é gerida pela função `go(view)` sem recarregar a página:
 | `mytickets` | usuário | Cards dos próprios chamados |
 | `new` | todos | Formulário de novo chamado |
 | `history` | admin, técnico | Histórico com filtros e paginação |
+| `ticket` | admin, técnico | Detalhe do chamado com procedimentos |
 | `users` | admin | Gerenciamento de usuários |
 
 Regras aplicadas automaticamente em `go()`:
@@ -305,7 +343,8 @@ Regras aplicadas automaticamente em `go()`:
 | `POST` | `/api/auth/login` | Autentica e retorna token |
 | `POST` | `/api/auth/logout` | Invalida o token da sessão |
 | `GET` | `/api/auth/me` | Retorna dados da sessão atual |
-| `POST` | `/api/auth/change-password` | Define nova senha (fluxo de reset) |
+| `POST` | `/api/auth/change-password` | Define nova senha (fluxo de reset forçado pelo admin) |
+| `POST` | `/api/auth/change-own-password` | Altera a própria senha (requer senha atual) |
 
 ### Chamados (requerem autenticação)
 
@@ -313,10 +352,10 @@ Regras aplicadas automaticamente em `go()`:
 |--------|------|-----------|-----------|
 | `GET` | `/api/tickets` | todos | Lista chamados (filtrado por `created_by` para perfil `usuario`) |
 | `GET` | `/api/tickets/:id` | todos | Busca chamado por ID |
-| `POST` | `/api/tickets` | todos | Cria novo chamado |
-| `PATCH` | `/api/tickets/:id/status` | admin, técnico | Atualiza status |
+| `POST` | `/api/tickets` | todos | Cria novo chamado (atribui técnico automaticamente) |
+| `PATCH` | `/api/tickets/:id` | admin, técnico | Atualiza status, técnico atribuído e/ou registra procedimento |
+| `PATCH` | `/api/tickets/:id/status` | admin, técnico | Atualiza somente o status |
 | `DELETE` | `/api/tickets/:id` | admin, técnico | Exclui chamado |
-| `GET` | `/api/check-duplicate` | todos | Verifica duplicata por usuário + categoria |
 
 ### Estatísticas e Categorias
 
@@ -324,6 +363,7 @@ Regras aplicadas automaticamente em `go()`:
 |--------|------|-----------|
 | `GET` | `/api/stats` | Totais gerais e por categoria |
 | `GET` | `/api/categories` | Lista de categorias por tipo |
+| `GET` | `/api/technicians` | Lista de usuários com perfil técnico |
 
 ### Usuários (requerem autenticação)
 
@@ -340,7 +380,7 @@ Regras aplicadas automaticamente em `go()`:
 | Parâmetro | Tipo | Descrição |
 |-----------|------|-----------|
 | `type` | `requisicao` \| `incidente` | Filtra por tipo |
-| `status` | `aberto` \| `em_andamento` \| `fechado` | Filtra por status |
+| `status` | `aberto` \| `em_analise` \| `pendente` \| `pendente_terceiros` \| `fechado` | Filtra por status |
 | `user` | string | Filtra por nome do usuário (busca parcial) |
 | `q` | string | Busca em categoria, descrição, ID e usuário |
 | `page` | number | Página (padrão: 1) |
@@ -350,7 +390,9 @@ Regras aplicadas automaticamente em `go()`:
 
 ## Banco de Dados
 
-O LokiJS persiste os dados em um arquivo JSON binário (`.db`). Dois collections são criados automaticamente na primeira execução:
+O LokiJS persiste os dados em um arquivo JSON binário (`.db`). Dois collections são criados automaticamente na primeira execução.
+
+Na inicialização, o servidor executa uma migração automática que renomeia registros com status `em_andamento` (legado) para `em_analise`.
 
 ### Collection `tickets`
 
@@ -363,10 +405,21 @@ O LokiJS persiste os dados em um arquivo JSON binário (`.db`). Dois collections
 | `user_name` | string | Nome do solicitante |
 | `description` | string | Descrição detalhada |
 | `priority` | string | `baixa`, `media` ou `alta` |
-| `status` | string | `aberto`, `em_andamento` ou `fechado` |
+| `status` | string | `aberto`, `em_analise`, `pendente`, `pendente_terceiros` ou `fechado` |
 | `created_by` | string | ID do usuário que criou o chamado |
+| `assigned_to` | string | ID do técnico atribuído |
+| `assigned_to_name` | string | Nome do técnico atribuído |
+| `procedures` | array | Lista de procedimentos técnicos registrados |
 | `created_at` | number | Timestamp de criação (ms) |
 | `updated_at` | number | Timestamp da última atualização (ms) |
+
+#### Estrutura de cada procedimento em `procedures`
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `text` | string | Descrição do procedimento |
+| `technician_name` | string | Nome do técnico que registrou |
+| `created_at` | number | Timestamp do registro (ms) |
 
 ### Collection `users`
 
@@ -388,7 +441,7 @@ O LokiJS persiste os dados em um arquivo JSON binário (`.db`). Dois collections
 node scripts/seed.js
 ```
 
-Insere 25 chamados de exemplo distribuídos entre abertos, em andamento e fechados. O script aborta automaticamente se já existirem dados no banco.
+Insere 25 chamados de exemplo distribuídos entre os diferentes status. O script aborta automaticamente se já existirem dados no banco.
 
 ---
 

@@ -108,12 +108,13 @@ function clean(doc) {
 }
 
 // Apply text/enum filters and return sorted, paginated results
-function queryTickets({ type, status, user, q, limit, offset, created_by }) {
+function queryTickets({ type, status, user, q, limit, offset, created_by, assigned_to }) {
   let results = col.chain().find();
 
-  if (created_by) results = results.find({ created_by });
-  if (type)       results = results.find({ type });
-  if (status)     results = results.find({ status });
+  if (created_by)  results = results.find({ created_by });
+  if (type)        results = results.find({ type });
+  if (status)      results = results.find({ status });
+  if (assigned_to) results = results.find({ assigned_to });
 
   let data = results.simplesort('created_at', true).data();
 
@@ -186,12 +187,58 @@ function getStats() {
   };
 }
 
+function getStatsByTechnician() {
+  const counts = {};
+  col.data.forEach(tk => {
+    const name = tk.assigned_to_name || 'Não atribuído';
+    counts[name] = (counts[name] || 0) + 1;
+  });
+  return Object.entries(counts)
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total);
+}
+
 function getStatsByCategory(type) {
   const counts = {};
   col.find({ type }).forEach(t => { counts[t.category] = (counts[t.category] || 0) + 1; });
   return Object.entries(counts)
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total);
+}
+
+// SLA targets (ms) — ITIL enterprise standards
+const SLA_TARGETS = {
+  incidente: { alta: 4 * 3600000, media: 8 * 3600000, baixa: 24 * 3600000 },
+  requisicao: 72 * 3600000,
+};
+
+function getSlaStats() {
+  const now = Date.now();
+  let dentro = 0, risco = 0, violado = 0, pausado = 0;
+
+  col.data.forEach(tk => {
+    if (tk.status === 'fechado') return;
+    // SLA clock paused while awaiting response
+    if (tk.status === 'pendente' || tk.status === 'pendente_terceiros') {
+      pausado++;
+      return;
+    }
+    const target = tk.type === 'incidente'
+      ? (SLA_TARGETS.incidente[tk.priority] || SLA_TARGETS.incidente.media)
+      : SLA_TARGETS.requisicao;
+
+    const ratio = (now - tk.created_at) / target;
+    if (ratio >= 1)   violado++;
+    else if (ratio >= 0.8) risco++;
+    else              dentro++;
+  });
+
+  const active = dentro + risco + violado;
+  return {
+    dentro, risco, violado, pausado,
+    active,
+    compliance: active > 0 ? Math.round(dentro / active * 100) : 100,
+  };
 }
 
 function migrateStatuses() {
@@ -297,7 +344,8 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 // ─── ADMIN SEED ───────────────────────────────────────────────────────────────
-const VALID_ROLES = new Set(['admin', 'tecnico', 'usuario']);
+const VALID_ROLES   = new Set(['admin', 'gerencia', 'tecnico', 'usuario']);
+const ADMIN_ROLES   = new Set(['admin', 'gerencia']);
 
 function createAdminIfNeeded() {
   if (!findUserByUsername('admin')) {
@@ -436,19 +484,20 @@ api.use(requireAuth);
 // GET /api/tickets — list with filters + pagination
 api.get('/tickets', (req, res) => {
   try {
-    const type   = sanitize(req.query.type   || '', 20);
-    const status = sanitize(req.query.status || '', 20);
-    const user   = sanitize(req.query.user   || '', 100);
-    const q      = sanitize(req.query.q      || '', 200);
-    const page   = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit  = Math.min(100, parseInt(req.query.limit) || 50);
-    const offset = (page - 1) * limit;
+    const type        = sanitize(req.query.type        || '', 20);
+    const status      = sanitize(req.query.status      || '', 20);
+    const user        = sanitize(req.query.user        || '', 100);
+    const q           = sanitize(req.query.q           || '', 200);
+    const assigned_to = sanitize(req.query.assigned_to || '', 100);
+    const page        = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit       = Math.min(100, parseInt(req.query.limit) || 50);
+    const offset      = (page - 1) * limit;
 
     if (type   && !VALID_TYPES.has(type))     return res.status(400).json({ error: 'Tipo inválido.' });
     if (status && !VALID_STATUSES.has(status)) return res.status(400).json({ error: 'Status inválido.' });
 
     const created_by = req.session.role === 'usuario' ? req.session.userId : null;
-    const { total, rows } = queryTickets({ type, status, user, q, limit, offset, created_by });
+    const { total, rows } = queryTickets({ type, status, user, q, limit, offset, created_by, assigned_to });
 
     res.json({
       tickets: rows,
@@ -639,6 +688,8 @@ api.get('/stats', (_req, res) => {
         requisicao: getStatsByCategory('requisicao'),
         incidente:  getStatsByCategory('incidente'),
       },
+      byTechnician: getStatsByTechnician(),
+      sla:          getSlaStats(),
     });
   } catch (err) {
     console.error('[GET /stats]', err);
@@ -750,8 +801,8 @@ api.patch('/users/:id', writeLimiter, (req, res) => {
 
 api.post('/users/:id/reset-password', writeLimiter, (req, res) => {
   try {
-    if (req.session.role !== 'admin')
-      return res.status(403).json({ error: 'Apenas administradores podem resetar senhas.' });
+    if (!ADMIN_ROLES.has(req.session.role))
+      return res.status(403).json({ error: 'Sem permissão.' });
     const id  = sanitize(req.params.id, 50);
     const doc = colUsers.findOne({ id });
     if (!doc) return res.status(404).json({ error: 'Usuário não encontrado.' });
