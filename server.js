@@ -386,8 +386,8 @@ app.use(helmet({
 app.use(cors({ origin: ALLOWED_ORIGIN, methods: ['GET','POST','PATCH','DELETE'] }));
 
 // Body parsing
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: false, limit: '10kb' }));
+app.use(express.json({ limit: '500kb' }));
+app.use(express.urlencoded({ extended: false, limit: '500kb' }));
 
 // Rate limiting — API
 const apiLimiter = rateLimit({
@@ -509,6 +509,43 @@ api.get('/tickets', (req, res) => {
   }
 });
 
+// GET /api/tickets/export — download all tickets as CSV (admin/gerencia only)
+api.get('/tickets/export', (req, res) => {
+  try {
+    if (!ADMIN_ROLES.has(req.session.role))
+      return res.status(403).json({ error: 'Sem permissão.' });
+
+    const all = col.chain().simplesort('created_at', true).data().map(clean);
+
+    const fmtTs = ts => {
+      if (!ts) return '';
+      return new Date(ts).toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+    };
+
+    const escCsv = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const headers = ['id','tipo','categoria','subcategoria','solicitante','descricao','prioridade','status','tecnico','criado_em','atualizado_em'];
+    const rows = all.map(t => [
+      t.id, t.type, t.category, t.subcategory || '', t.user_name,
+      t.description, t.priority || '', t.status, t.assigned_to_name || '',
+      fmtTs(t.created_at), fmtTs(t.updated_at),
+    ].map(escCsv).join(','));
+
+    const csv  = '﻿' + [headers.join(','), ...rows].join('\r\n');
+    const date = new Date().toISOString().slice(0, 10);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="chamados-${date}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('[GET /tickets/export]', err);
+    res.status(500).json({ error: 'Erro interno ao exportar.' });
+  }
+});
+
 // GET /api/tickets/:id
 api.get('/tickets/:id', (req, res) => {
   try {
@@ -518,6 +555,60 @@ api.get('/tickets/:id', (req, res) => {
   } catch (err) {
     console.error('[GET /tickets/:id]', err);
     res.status(500).json({ error: 'Erro interno.' });
+  }
+});
+
+// POST /api/tickets/import — bulk create from parsed CSV rows (admin/gerencia only)
+api.post('/tickets/import', writeLimiter, (req, res) => {
+  try {
+    if (!ADMIN_ROLES.has(req.session.role))
+      return res.status(403).json({ error: 'Sem permissão.' });
+
+    const { tickets } = req.body;
+    if (!Array.isArray(tickets) || !tickets.length)
+      return res.status(400).json({ error: 'Nenhum dado enviado.' });
+    if (tickets.length > 500)
+      return res.status(400).json({ error: 'Máximo de 500 chamados por importação.' });
+
+    const techs    = colUsers.find({ role: 'tecnico' });
+    const imported = [];
+    const errors   = [];
+    const now      = Date.now();
+
+    tickets.forEach((row, idx) => {
+      const body = {
+        type:        sanitize(String(row.type        || ''), 20),
+        category:    sanitize(String(row.category    || ''), 100),
+        subcategory: sanitize(String(row.subcategory || ''), 100),
+        user_name:   sanitize(String(row.user_name   || ''), 150),
+        description: sanitize(String(row.description || ''), 2000),
+        priority:    sanitize(String(row.priority    || 'media'), 10),
+      };
+
+      const errs = validateTicketBody(body);
+      if (errs.length) {
+        errors.push({ row: idx + 2, errors: errs });
+        return;
+      }
+
+      const assigned = techs.length ? techs[Math.floor(Math.random() * techs.length)] : null;
+      imported.push(insertTicket({
+        id:               generateId(col.data.length),
+        ...body,
+        status:           'aberto',
+        created_by:       req.session.userId,
+        assigned_to:      assigned?.id   || null,
+        assigned_to_name: assigned?.name || null,
+        procedures:       [],
+        created_at:       now,
+        updated_at:       now,
+      }));
+    });
+
+    res.json({ imported: imported.length, errors });
+  } catch (err) {
+    console.error('[POST /tickets/import]', err);
+    res.status(500).json({ error: 'Erro interno ao importar.' });
   }
 });
 
@@ -621,6 +712,20 @@ api.patch('/tickets/:id/status', writeLimiter, (req, res) => {
   } catch (err) {
     console.error('[PATCH /tickets/:id/status]', err);
     res.status(500).json({ error: 'Erro interno ao atualizar status.' });
+  }
+});
+
+// DELETE /api/tickets — remove ALL tickets (admin/gerencia only)
+api.delete('/tickets', writeLimiter, (req, res) => {
+  try {
+    if (!ADMIN_ROLES.has(req.session.role))
+      return res.status(403).json({ error: 'Sem permissão.' });
+    const count = col.data.length;
+    while (col.data.length > 0) col.remove(col.data[0]);
+    res.json({ ok: true, deleted: count });
+  } catch (err) {
+    console.error('[DELETE /tickets]', err);
+    res.status(500).json({ error: 'Erro interno ao limpar.' });
   }
 });
 

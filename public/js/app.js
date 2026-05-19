@@ -1455,6 +1455,7 @@ function roleBadge(role) {
 }
 
 async function renderUsers() {
+  const isAdmin = ADMIN_ROLES.has(currentUser?.role);
   const el = document.getElementById('app');
   el.innerHTML = `
     <div class="page-header">
@@ -1463,6 +1464,29 @@ async function renderUsers() {
         <i class="ti ti-user-plus" aria-hidden="true"></i> ${t('users.new')}
       </button>
     </div>
+    ${isAdmin ? `
+    <div class="admin-tools-card">
+      <div class="admin-tools-head">
+        <i class="ti ti-database" aria-hidden="true"></i>
+        <span>Ferramentas — Chamados</span>
+      </div>
+      <div class="admin-tools-row">
+        <div class="admin-tools-group">
+          <button class="btn btn-sm" onclick="downloadCsvTemplate()">
+            <i class="ti ti-download" aria-hidden="true"></i> Baixar modelo CSV
+          </button>
+          <button class="btn btn-sm" onclick="openImportModal()">
+            <i class="ti ti-file-upload" aria-hidden="true"></i> Importar chamados
+          </button>
+          <button class="btn btn-sm" onclick="exportTickets()">
+            <i class="ti ti-file-download" aria-hidden="true"></i> Exportar chamados
+          </button>
+        </div>
+        <button class="btn btn-sm btn-danger-outline" onclick="clearAllTickets()">
+          <i class="ti ti-trash" aria-hidden="true"></i> Limpar banco de dados
+        </button>
+      </div>
+    </div>` : ''}
     <div id="users-body"><div class="loader"><div class="spinner"></div> Carregando...</div></div>`;
   await loadUsers();
 }
@@ -1731,6 +1755,207 @@ async function submitChangeOwnPassword() {
   }
 }
 
+// ─── CSV TOOLS ────────────────────────────────────────────────────────────────
+
+function triggerDownload(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadCsvTemplate() {
+  const BOM     = '﻿';
+  const header  = 'tipo,categoria,subcategoria,solicitante,descricao,prioridade';
+  const examples = [
+    'requisicao,Acesso a Software,ChatGPT,João Silva,Preciso de acesso ao ChatGPT para análises do projeto,media',
+    'requisicao,Acesso a Sistema/Serviço,,Carlos Andrade,Solicito acesso ao sistema de gestão de RH,baixa',
+    'incidente,Hardware Defeituoso,,Maria Santos,Computador não liga desde esta manhã sem motivo aparente,alta',
+    'incidente,Sistema/Aplicação Fora do Ar,,Pedro Costa,Sistema de CRM offline há duas horas impactando equipe,alta',
+  ];
+  triggerDownload(BOM + [header, ...examples].join('\r\n'), 'modelo-importacao-chamados.csv', 'text/csv;charset=utf-8;');
+  toast('Modelo CSV baixado!');
+}
+
+async function exportTickets() {
+  try {
+    const res = await fetch('/api/tickets/export', {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Erro ao exportar.');
+    const text = await res.text();
+    const date = new Date().toISOString().slice(0, 10);
+    triggerDownload(text, `chamados-${date}.csv`, 'text/csv;charset=utf-8;');
+    toast('Exportação concluída!');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function clearAllTickets() {
+  if (!confirm('Tem certeza que deseja excluir TODOS os chamados do banco de dados?\n\nEsta ação é irreversível e não pode ser desfeita.')) return;
+  try {
+    const res = await api.delete('/tickets');
+    toast(`${res.deleted} chamado(s) excluído(s) com sucesso.`);
+    updateSidebar({ abertos: 0, em_analise: 0, total: 0 });
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ─── CSV IMPORT ────────────────────────────────────────────────────────────────
+
+let importParsedRows = [];
+
+function parseCsv(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return { headers: [], rows: [] };
+
+  function parseRow(line) {
+    const fields = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (c === ',' && !inQ) { fields.push(cur); cur = ''; }
+      else cur += c;
+    }
+    fields.push(cur);
+    return fields;
+  }
+
+  const headers = parseRow(lines[0]).map(h => h.trim());
+  const rows    = lines.slice(1).map(l => {
+    const vals = parseRow(l);
+    return Object.fromEntries(headers.map((h, i) => [h, (vals[i] || '').trim()]));
+  });
+  return { headers, rows };
+}
+
+const IMPORT_REQUIRED_COLS = ['tipo', 'categoria', 'solicitante', 'descricao'];
+
+function openImportModal() {
+  importParsedRows = [];
+  document.getElementById('import-step-upload').style.display  = '';
+  document.getElementById('import-step-preview').style.display = 'none';
+  document.getElementById('import-step-result').style.display  = 'none';
+  document.getElementById('import-file-input').value           = '';
+  document.getElementById('btn-import-submit').disabled        = true;
+  document.getElementById('btn-import-submit').style.display   = '';
+  document.getElementById('btn-import-label').textContent      = 'Importar';
+  document.getElementById('btn-import-cancel').textContent     = 'Cancelar';
+  document.getElementById('import-modal').style.display        = 'flex';
+}
+
+function closeImportModal() {
+  document.getElementById('import-modal').style.display = 'none';
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const { headers, rows } = parseCsv(e.target.result);
+
+    const missing = IMPORT_REQUIRED_COLS.filter(c => !headers.includes(c));
+    document.getElementById('import-step-upload').style.display  = 'none';
+    document.getElementById('import-step-preview').style.display = '';
+
+    if (missing.length) {
+      document.getElementById('import-summary').innerHTML =
+        `<div class="alert-box a-danger"><i class="ti ti-alert-circle"></i><div>Colunas obrigatórias ausentes: <strong>${missing.join(', ')}</strong>. Baixe o modelo CSV para conferir o formato correto.</div></div>`;
+      document.getElementById('import-preview-table').innerHTML = '';
+      document.getElementById('btn-import-submit').disabled = true;
+      return;
+    }
+    if (!rows.length) {
+      document.getElementById('import-summary').innerHTML =
+        `<div class="alert-box a-danger"><i class="ti ti-alert-circle"></i><div>O arquivo não contém linhas de dados além do cabeçalho.</div></div>`;
+      document.getElementById('import-preview-table').innerHTML = '';
+      return;
+    }
+
+    importParsedRows = rows.map(r => ({
+      type:        r.tipo         || '',
+      category:    r.categoria    || '',
+      subcategory: r.subcategoria || '',
+      user_name:   r.solicitante  || '',
+      description: r.descricao    || '',
+      priority:    r.prioridade   || 'media',
+    }));
+
+    document.getElementById('import-summary').innerHTML =
+      `<div class="import-summary-box"><i class="ti ti-circle-check" style="color:var(--green)"></i> <strong>${importParsedRows.length}</strong> linha(s) encontrada(s). Revise a prévia e clique em <strong>Importar</strong>.</div>`;
+
+    const cols     = ['tipo','categoria','subcategoria','solicitante','descricao','prioridade'];
+    const fieldMap = { tipo:'type', categoria:'category', subcategoria:'subcategory', solicitante:'user_name', descricao:'description', prioridade:'priority' };
+    const max      = Math.min(importParsedRows.length, 8);
+
+    document.getElementById('import-preview-table').innerHTML = `
+      <div class="import-preview-title">Prévia — ${max} de ${importParsedRows.length} linha(s):</div>
+      <div class="import-table-wrap">
+        <table class="import-table">
+          <thead><tr>${cols.map(c => `<th>${escHtml(c)}</th>`).join('')}</tr></thead>
+          <tbody>${importParsedRows.slice(0, max).map(r =>
+            `<tr>${cols.map(c => `<td>${escHtml(r[fieldMap[c]] || '')}</td>`).join('')}</tr>`
+          ).join('')}</tbody>
+        </table>
+      </div>`;
+
+    document.getElementById('btn-import-submit').disabled = false;
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+async function submitImport() {
+  if (!importParsedRows.length) return;
+  const btn = document.getElementById('btn-import-submit');
+  btn.disabled = true;
+  document.getElementById('btn-import-label').textContent = 'Importando...';
+
+  try {
+    const res = await api.post('/tickets/import', { tickets: importParsedRows });
+
+    document.getElementById('import-step-preview').style.display = 'none';
+    document.getElementById('import-step-result').style.display  = '';
+
+    let html = `<div class="alert-box" style="background:var(--green-bg);border:1px solid var(--green);border-radius:var(--r-md);padding:12px 16px;display:flex;gap:10px;align-items:flex-start">
+      <i class="ti ti-circle-check" style="color:var(--green);font-size:18px;flex-shrink:0;margin-top:1px"></i>
+      <div><strong>${res.imported}</strong> chamado(s) importado(s) com sucesso!</div>
+    </div>`;
+
+    if (res.errors?.length) {
+      html += `<div class="import-errors-box">
+        <div class="import-errors-title"><i class="ti ti-alert-triangle"></i> ${res.errors.length} linha(s) com erro:</div>
+        ${res.errors.map(e =>
+          `<div class="import-err-row"><strong>Linha ${e.row}:</strong> ${e.errors.map(escHtml).join(' · ')}</div>`
+        ).join('')}
+      </div>`;
+    }
+
+    document.getElementById('import-result-msg').innerHTML = html;
+    btn.style.display = 'none';
+    document.getElementById('btn-import-cancel').textContent = 'Fechar';
+
+    toast(`${res.imported} chamado(s) importado(s)!`);
+    try { const s = await api.get('/stats'); updateSidebar(s.overview); } catch (_) {}
+  } catch (err) {
+    document.getElementById('import-step-preview').style.display = 'none';
+    document.getElementById('import-step-result').style.display  = '';
+    document.getElementById('import-result-msg').innerHTML =
+      `<div class="alert-box a-danger"><i class="ti ti-alert-circle"></i><div>${escHtml(err.message)}</div></div>`;
+    btn.disabled = false;
+    document.getElementById('btn-import-label').textContent = 'Tentar novamente';
+    toast(err.message, 'error');
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
   if (authToken) {
@@ -1967,6 +2192,29 @@ document.getElementById('sd-type-filter').addEventListener('change', e => {
 document.getElementById('sd-tech-filter').addEventListener('change', e => {
   sdState.assignedTo = e.target.value;
   loadStatusDrawer();
+});
+
+// Import modal listeners
+document.getElementById('btn-import-close').addEventListener('click', closeImportModal);
+document.getElementById('btn-import-cancel').addEventListener('click', closeImportModal);
+document.getElementById('btn-import-submit').addEventListener('click', submitImport);
+document.getElementById('import-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeImportModal(); });
+
+document.getElementById('import-browse-btn').addEventListener('click', () => {
+  document.getElementById('import-file-input').click();
+});
+document.getElementById('import-file-input').addEventListener('change', e => {
+  handleImportFile(e.target.files[0]);
+});
+
+const importDz = document.getElementById('import-dropzone');
+importDz.addEventListener('dragover', e => { e.preventDefault(); importDz.classList.add('dz-over'); });
+importDz.addEventListener('dragleave', () => importDz.classList.remove('dz-over'));
+importDz.addEventListener('drop', e => {
+  e.preventDefault();
+  importDz.classList.remove('dz-over');
+  const file = e.dataTransfer?.files[0];
+  if (file) handleImportFile(file);
 });
 
 // Apply translations on first load (before login)

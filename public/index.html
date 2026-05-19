@@ -307,6 +307,54 @@
   </div>
 </div>
 
+<!-- ═══ IMPORT TICKETS MODAL ═══════════════════════════════════ -->
+<div class="modal-overlay" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" style="display:none">
+  <div class="modal import-modal-inner">
+    <div class="modal-header">
+      <h2 class="modal-title" id="import-modal-title">
+        <i class="ti ti-file-upload" aria-hidden="true"></i> Importar chamados via CSV
+      </h2>
+      <button class="modal-close" id="btn-import-close" aria-label="Fechar"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body import-modal-body">
+
+      <!-- Step 1: upload -->
+      <div id="import-step-upload">
+        <div class="import-info-box">
+          <div class="import-info-row"><strong>Colunas obrigatórias:</strong> <code>tipo</code>, <code>categoria</code>, <code>solicitante</code>, <code>descricao</code></div>
+          <div class="import-info-row"><strong>Colunas opcionais:</strong> <code>subcategoria</code>, <code>prioridade</code></div>
+          <div class="import-info-row"><strong>tipo:</strong> <code>requisicao</code> ou <code>incidente</code></div>
+          <div class="import-info-row"><strong>prioridade:</strong> <code>baixa</code>, <code>media</code> (padrão) ou <code>alta</code></div>
+        </div>
+        <div class="import-dropzone" id="import-dropzone">
+          <input type="file" id="import-file-input" accept=".csv,text/csv" style="display:none">
+          <i class="ti ti-file-spreadsheet import-dz-icon" aria-hidden="true"></i>
+          <div class="import-dz-text">Arraste um arquivo CSV ou <button type="button" class="import-dz-link" id="import-browse-btn">clique para selecionar</button></div>
+          <div class="import-dz-sub">Máximo 500 linhas · UTF-8 com ou sem BOM</div>
+        </div>
+      </div>
+
+      <!-- Step 2: preview -->
+      <div id="import-step-preview" style="display:none">
+        <div id="import-summary"></div>
+        <div id="import-preview-table"></div>
+      </div>
+
+      <!-- Step 3: result -->
+      <div id="import-step-result" style="display:none">
+        <div id="import-result-msg"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="btn-import-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btn-import-submit" disabled>
+        <i class="ti ti-upload" aria-hidden="true"></i> <span id="btn-import-label">Importar</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ STATUS DRAWER ════════════════════════════════════════════ -->
 <div id="sd-overlay" class="sd-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="sd-title">
   <div class="sd-panel">
